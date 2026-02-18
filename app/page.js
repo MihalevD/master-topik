@@ -80,6 +80,7 @@ export default function Home() {
       } else {
         // Same day - restore daily progress from database
         const dailyCorrectFromDB = stats.daily_correct || 0
+        console.log('Restoring daily_correct:', dailyCorrectFromDB) // Debug
         setDailyCorrect(dailyCorrectFromDB)
       }
     }

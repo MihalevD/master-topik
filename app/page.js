@@ -30,6 +30,7 @@ export default function Home() {
   const [wordStats, setWordStats] = useState({})
   const [currentView, setCurrentView] = useState('practice')
   const [reviewMode, setReviewMode] = useState(false)
+  const [reverseMode, setReverseMode] = useState(false)
   const [dailyCorrect, setDailyCorrect] = useState(0)
   const [dailySkipped, setDailySkipped] = useState(0) // #15
   const [error, setError] = useState(null)            // #10
@@ -242,15 +243,31 @@ export default function Home() {
     }
   }
 
+  const speakKorean = (text) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return
+    window.speechSynthesis.cancel()
+    const utterance = new SpeechSynthesisUtterance(text)
+    utterance.lang = 'ko-KR'
+    utterance.rate = 0.85
+    window.speechSynthesis.speak(utterance)
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!input.trim()) return
 
     const currentWord = dailyWords[currentIndex]
     const normalizedInput = input.trim().toLowerCase().replace(/\s+/g, '')
-    const normalizedAnswer = currentWord.korean.toLowerCase().replace(/\s+/g, '')
 
-    const isCorrect = normalizedInput === normalizedAnswer
+    let isCorrect
+    if (reverseMode) {
+      // Reverse: user types English — accept any comma-separated alternative
+      const alternatives = currentWord.english.split(',').map(a => a.trim().toLowerCase().replace(/\s+/g, ''))
+      isCorrect = alternatives.some(alt => alt === normalizedInput)
+    } else {
+      const normalizedAnswer = currentWord.korean.toLowerCase().replace(/\s+/g, '')
+      isCorrect = normalizedInput === normalizedAnswer
+    }
     await updateWordStats(currentWord, isCorrect, showHint, showExample)
 
     if (isCorrect) {
@@ -357,6 +374,7 @@ export default function Home() {
       <SettingsView
         dailyChallenge={dailyChallenge} setDailyChallenge={setDailyChallenge}
         reviewMode={reviewMode} setReviewMode={setReviewMode}
+        reverseMode={reverseMode} setReverseMode={setReverseMode}
         setCurrentView={setCurrentView}
         wordsGeneratedRef={wordsGeneratedRef} generateDailyWords={generateDailyWords}
       />
@@ -403,7 +421,7 @@ export default function Home() {
   return (
     <div className="h-screen bg-gray-900 flex flex-col overflow-hidden">
       {feedback === 'correct' && (
-        <CorrectModal word={currentWord} points={points} onNext={handleNextWord} />
+        <CorrectModal word={currentWord} points={points} onNext={handleNextWord} onSpeak={speakKorean} />
       )}
 
       {/* #10 — error toast */}
@@ -438,6 +456,8 @@ export default function Home() {
               handleSubmit={handleSubmit}
               handleNextWord={handleNextWord}
               currentWordDifficulty={currentWordDifficulty}
+              reverseMode={reverseMode}
+              onSpeak={speakKorean}
             />
           </div>
 

@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect } from 'react'
+import { Volume2 } from 'lucide-react'
 
-export default function CorrectModal({ word, points, onNext }) {
+export default function CorrectModal({ word, points, onNext, onSpeak }) {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
@@ -19,7 +20,18 @@ export default function CorrectModal({ word, points, onNext }) {
         <div className="text-center mb-4 md:mb-6">
           <div className="text-5xl md:text-6xl mb-2">✓</div>
           <p className="text-xl md:text-2xl font-bold text-green-400">Correct!</p>
-          <p className="text-2xl md:text-4xl font-bold text-white mt-2">{word.korean}</p>
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <p className="text-2xl md:text-4xl font-bold text-white">{word.korean}</p>
+            {onSpeak && (
+              <button
+                onClick={() => onSpeak(word.korean)}
+                className="p-1.5 rounded-full bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-colors cursor-pointer"
+                title="Listen"
+              >
+                <Volume2 size={18} />
+              </button>
+            )}
+          </div>
           <p className="text-gray-400 mt-1 text-sm md:text-base">{word.english}</p>
           <p className="text-green-300 mt-1 text-sm md:text-base">+{points} points</p>
         </div>

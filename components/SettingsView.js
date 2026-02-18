@@ -5,6 +5,7 @@ import { Settings as SettingsIcon } from 'lucide-react'
 export default function SettingsView({
   dailyChallenge, setDailyChallenge,
   reviewMode, setReviewMode,
+  reverseMode, setReverseMode,
   setCurrentView, wordsGeneratedRef, generateDailyWords
 }) {
   return (
@@ -60,6 +61,22 @@ export default function SettingsView({
                 className={`px-4 py-2 rounded-lg ${reviewMode ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-400'} cursor-pointer`}
               >
                 {reviewMode ? 'ON' : 'OFF'}
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-bold text-white">Reverse Mode</p>
+                <p className="text-sm text-gray-400">See Korean → type the English meaning</p>
+              </div>
+              <button
+                onClick={() => {
+                  setReverseMode(!reverseMode)
+                  setCurrentView('practice')
+                }}
+                className={`px-4 py-2 rounded-lg ${reverseMode ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-400'} cursor-pointer`}
+              >
+                {reverseMode ? 'ON' : 'OFF'}
               </button>
             </div>
           </div>

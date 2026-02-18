@@ -74,11 +74,13 @@ export default function Home() {
         
         const newStreak = lastLogin === yesterdayStr ? stats.streak + 1 : 0
         setStreak(newStreak)
-        setDailyCorrect(0) // Reset on new day
+        setDailyCorrect(0)
+        setScore(0)
         await saveUserStats(stats.total_completed, 0, newStreak, today, 0)
       } else {
-        // Same day - restore daily progress
-        setDailyCorrect(stats.daily_correct || 0)
+        // Same day - restore daily progress from database
+        const dailyCorrectFromDB = stats.daily_correct || 0
+        setDailyCorrect(dailyCorrectFromDB)
       }
     }
 
@@ -123,8 +125,11 @@ export default function Home() {
 
   const generateDailyWords = () => {
     if (wordsGeneratedRef.current && dailyWords.length > 0) {
+      console.log('Skipping word generation - already generated')
       return
     }
+    
+    console.log('Generating daily words...')
     
     const topikIIUnlocked = totalCompleted >= 500
     let availableWords = topikIIUnlocked ? allWords : topikIWords
@@ -160,7 +165,7 @@ export default function Home() {
 
     setDailyWords(selected)
     setCurrentIndex(0)
-    setDailyCorrect(0)
+    // DON'T reset dailyCorrect here - it should come from database
     setInput('')
     setShowHint(false)
     setShowExample(false)

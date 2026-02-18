@@ -2,7 +2,7 @@
 
 import { Trophy } from 'lucide-react'
 
-export default function ChallengeComplete({ score, streak, totalCompleted, dailyCorrect, dailySkipped, onNewChallenge }) {
+export default function ChallengeComplete({ score, streak, totalCompleted, dailyCorrect, dailySkipped, onReview, onNewChallenge }) {
   return (
     <div className="h-screen bg-gray-900 flex items-center justify-center p-6">
       <div className="bg-gradient-to-r from-green-500 to-blue-600 text-white rounded-2xl shadow-2xl p-12 text-center max-w-2xl">
@@ -37,12 +37,20 @@ export default function ChallengeComplete({ score, streak, totalCompleted, daily
             <span className="text-xl font-bold">TOPIK II UNLOCKED!</span>
           </div>
         )}
-        <button
-          onClick={onNewChallenge}
-          className="bg-white text-purple-600 px-8 py-3 rounded-xl font-bold hover:bg-gray-100 transition-colors cursor-pointer"
-        >
-          New Challenge
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <button
+            onClick={onReview}
+            className="bg-white/20 hover:bg-white/30 text-white px-8 py-3 rounded-xl font-bold transition-colors cursor-pointer"
+          >
+            Review Today's Words
+          </button>
+          <button
+            onClick={onNewChallenge}
+            className="bg-white text-purple-600 px-8 py-3 rounded-xl font-bold hover:bg-gray-100 transition-colors cursor-pointer"
+          >
+            New Challenge →
+          </button>
+        </div>
       </div>
     </div>
   )

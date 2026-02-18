@@ -37,7 +37,18 @@ export default function CorrectModal({ word, points, onNext, onSpeak }) {
         </div>
         <div className="bg-gray-700 rounded-xl p-3 md:p-4 mb-4 md:mb-6">
           <p className="text-xs text-gray-400 mb-2">Example Sentence</p>
-          <p className="text-base md:text-lg font-bold text-white mb-1">{word.sentences[0]}</p>
+          <div className="flex items-center gap-2 mb-1">
+            <p className="text-base md:text-lg font-bold text-white">{word.sentences[0]}</p>
+            {onSpeak && (
+              <button
+                onClick={() => onSpeak(word.sentences[0])}
+                className="p-1 rounded-full bg-gray-600 hover:bg-gray-500 text-gray-300 hover:text-white transition-colors cursor-pointer flex-shrink-0"
+                title="Listen to example"
+              >
+                <Volume2 size={14} />
+              </button>
+            )}
+          </div>
           <p className="text-gray-300 italic text-xs md:text-sm">{word.sentences[1]}</p>
         </div>
         <button

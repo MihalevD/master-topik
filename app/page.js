@@ -25,7 +25,17 @@ export default function Home() {
   const [score, setScore] = useState(0)
   const [totalCompleted, setTotalCompleted] = useState(0)
   const [feedback, setFeedback] = useState('')
-  const [dailyChallenge, setDailyChallenge] = useState(25)
+  const [dailyChallenge, setDailyChallengeState] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dailyChallenge')
+      return saved ? Number(saved) : 25
+    }
+    return 25
+  })
+  const setDailyChallenge = (val) => {
+    localStorage.setItem('dailyChallenge', val)
+    setDailyChallengeState(val)
+  }
   const [streak, setStreak] = useState(0)
   const [wordStats, setWordStats] = useState({})
   const [currentView, setCurrentView] = useState('practice')
@@ -33,6 +43,7 @@ export default function Home() {
   const [reverseMode, setReverseMode] = useState(false)
   const [dailyCorrect, setDailyCorrect] = useState(0)
   const [dailySkipped, setDailySkipped] = useState(0) // #15
+  const [isReviewing, setIsReviewing] = useState(false)
   const [error, setError] = useState(null)            // #10
   const wordsGeneratedRef = React.useRef(false)        // #4 — single source of truth (removed state)
 
@@ -180,7 +191,12 @@ export default function Home() {
         generateDailyWords(freshWordStats) // #11 — pass fresh stats to avoid stale closure
       }
     } catch (err) {
-      setError('Failed to load data. Please check your connection.')
+      if (err?.status === 406 || err?.code === 'PGRST116') {
+        await supabase.auth.signOut()
+        setUser(null)
+      } else {
+        setError('Failed to load data. Please check your connection.')
+      }
     }
   }
 
@@ -228,12 +244,19 @@ export default function Home() {
 
   // --- #15: isSkip param to track skipped words ---
   const handleNextWord = (isSkip = false) => {
-    if (isSkip) setDailySkipped(prev => prev + 1)
+    if (isSkip && !isReviewing) setDailySkipped(prev => prev + 1)
 
-    if (dailyCorrect >= dailyChallenge) {
+    if (!isReviewing && dailyCorrect >= dailyChallenge) {
       setFeedback('complete')
     } else if (currentIndex < dailyWords.length - 1) {
       setCurrentIndex(currentIndex + 1)
+      setInput('')
+      setShowHint(false)
+      setShowExample(false)
+      setFeedback('')
+    } else if (isReviewing) {
+      // loop back to start during review
+      setCurrentIndex(0)
       setInput('')
       setShowHint(false)
       setShowExample(false)
@@ -272,20 +295,22 @@ export default function Home() {
 
     if (isCorrect) {
       setFeedback('correct')
-      const points = showHint ? 5 : (showExample ? 7 : 10)
-      const newScore = score + points
-      const newTotal = totalCompleted + 1
-      const newDailyCorrect = dailyCorrect + 1
+      if (!isReviewing) {
+        const points = showHint ? 5 : (showExample ? 7 : 10)
+        const newScore = score + points
+        const newTotal = totalCompleted + 1
+        const newDailyCorrect = dailyCorrect + 1
 
-      setScore(newScore)
-      setTotalCompleted(newTotal)
-      setDailyCorrect(newDailyCorrect)
+        setScore(newScore)
+        setTotalCompleted(newTotal)
+        setDailyCorrect(newDailyCorrect)
 
-      try {
-        const today = new Date().toISOString().split('T')[0]
-        await saveUserStats(newTotal, newScore, streak, today, newDailyCorrect)
-      } catch {
-        setError('Failed to save stats. Please check your connection.')
+        try {
+          const today = new Date().toISOString().split('T')[0]
+          await saveUserStats(newTotal, newScore, streak, today, newDailyCorrect)
+        } catch {
+          setError('Failed to save stats. Please check your connection.')
+        }
       }
     } else {
       setFeedback('wrong')
@@ -397,7 +422,16 @@ export default function Home() {
         totalCompleted={totalCompleted}
         dailyCorrect={dailyCorrect}   // #15
         dailySkipped={dailySkipped}   // #15
-        onNewChallenge={() => {       // #2 — reset both score and dailyCorrect
+        onReview={() => {
+          setIsReviewing(true)
+          setCurrentIndex(0)
+          setInput('')
+          setFeedback('')
+          setShowHint(false)
+          setShowExample(false)
+        }}
+        onNewChallenge={() => {
+          setIsReviewing(false)
           wordsGeneratedRef.current = false
           generateDailyWords()
           setScore(0)

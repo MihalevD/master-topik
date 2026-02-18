@@ -8,7 +8,7 @@ export default function Sidebar({
   currentWord, onReviewDifficult
 }) {
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <div className="flex flex-col gap-4 justify-center">
       {/* Daily Progress */}
       <div className="bg-gray-800 rounded-xl p-4">
         <div className="flex items-center justify-between mb-3">
@@ -96,12 +96,12 @@ export default function Sidebar({
       </div>
 
       {/* Example */}
-      <div className="bg-gray-800 rounded-xl p-4 flex-1 flex flex-col">
+      <div className="bg-gray-800 rounded-xl p-4">
         <p className="text-sm font-bold text-white mb-2">
           <BookOpen className="inline mr-1" size={16} />
           Example
         </p>
-        <div className="bg-gray-700 rounded-lg p-3 flex-1 flex items-center">
+        <div className="bg-gray-700 rounded-lg p-3">
           <p className="text-sm text-gray-300 italic">"{currentWord.sentences[1]}"</p>
         </div>
       </div>

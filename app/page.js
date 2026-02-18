@@ -440,7 +440,7 @@ export default function Home() {
         handleSignOut={handleSignOut}
       />
 
-      <div className="flex-1 p-3 md:p-6 overflow-y-auto md:overflow-hidden pb-[5.5rem] md:pb-6">
+      <div className="flex-1 p-3 overflow-y-auto md:overflow-hidden pb-[5.5rem] md:pb-4">
         <div className="max-w-7xl mx-auto md:h-full grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-2 flex flex-col justify-center">
             <PracticeCard
@@ -461,7 +461,7 @@ export default function Home() {
             />
           </div>
 
-          <div className="hidden md:block md:col-span-1">
+          <div className="hidden md:flex md:col-span-1 flex-col justify-center">
             <Sidebar
               dailyCorrect={dailyCorrect}
               dailyChallenge={dailyChallenge}

@@ -74,7 +74,11 @@ export default function Home() {
         
         const newStreak = lastLogin === yesterdayStr ? stats.streak + 1 : 0
         setStreak(newStreak)
-        await saveUserStats(stats.total_completed, stats.current_score, newStreak, today)
+        setDailyCorrect(0) // Reset on new day
+        await saveUserStats(stats.total_completed, 0, newStreak, today, 0)
+      } else {
+        // Same day - restore daily progress
+        setDailyCorrect(stats.daily_correct || 0)
       }
     }
 
@@ -234,7 +238,7 @@ export default function Home() {
       setDailyCorrect(newDailyCorrect)
 
       const today = new Date().toISOString().split('T')[0]
-      await saveUserStats(newTotal, newScore, streak, today)
+      await saveUserStats(newTotal, newScore, streak, today, newDailyCorrect)
     } else {
       setFeedback('wrong')
     }

@@ -98,12 +98,11 @@ export default function Home() {
       const ws = freshWordStats ?? wordStats
       availableWords = availableWords.filter(word => {
         const stats = ws[word.korean]
-        if (!stats || stats.attempts === 0) return false
-        return stats.correct / stats.attempts < 0.8
+        return stats && stats.attempts > 0
       })
 
       if (availableWords.length === 0) {
-        alert('No difficult words to review! You\'re doing great! 🎉')
+        alert('No seen words to review yet! Practice some words first. 🎉')
         setReviewMode(false)
         availableWords = topikIIUnlocked ? allWords : topikIWords
       }
@@ -244,9 +243,11 @@ export default function Home() {
 
   // --- #15: isSkip param to track skipped words ---
   const handleNextWord = (isSkip = false) => {
-    if (isSkip && !isReviewing) setDailySkipped(prev => prev + 1)
+    if (isSkip && !isReviewing && !reviewMode) setDailySkipped(prev => prev + 1)
 
-    if (!isReviewing && dailyCorrect >= dailyChallenge) {
+    const looping = isReviewing || reviewMode
+
+    if (!looping && dailyCorrect >= dailyChallenge) {
       setFeedback('complete')
     } else if (currentIndex < dailyWords.length - 1) {
       setCurrentIndex(currentIndex + 1)
@@ -254,8 +255,9 @@ export default function Home() {
       setShowHint(false)
       setShowExample(false)
       setFeedback('')
-    } else if (isReviewing) {
-      // loop back to start during review
+    } else if (looping) {
+      // reshuffle and loop back to start
+      setDailyWords(prev => [...prev].sort(() => Math.random() - 0.5))
       setCurrentIndex(0)
       setInput('')
       setShowHint(false)
@@ -295,7 +297,7 @@ export default function Home() {
 
     if (isCorrect) {
       setFeedback('correct')
-      if (!isReviewing) {
+      if (!isReviewing && !reviewMode) {
         const points = showHint ? 5 : (showExample ? 7 : 10)
         const newScore = score + points
         const newTotal = totalCompleted + 1

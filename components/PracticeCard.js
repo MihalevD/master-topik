@@ -41,6 +41,7 @@ export default function PracticeCard({
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
           placeholder="Type here..."
           className={`w-full text-2xl md:text-4xl text-center p-3 md:p-4 border-4 rounded-xl mb-3 md:mb-4 transition-all bg-gray-700 text-white ${
             feedback === 'wrong'
@@ -61,7 +62,7 @@ export default function PracticeCard({
             </button>
             <button
               type="button"
-              onClick={handleNextWord}
+              onClick={() => handleNextWord(true)}
               className="flex-1 bg-gradient-to-r from-gray-600 to-gray-700 text-white py-3 md:py-4 rounded-xl font-bold text-base md:text-xl hover:opacity-90 transition-opacity shadow-lg cursor-pointer"
             >
               Skip →

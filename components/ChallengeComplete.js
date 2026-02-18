@@ -2,14 +2,35 @@
 
 import { Trophy } from 'lucide-react'
 
-export default function ChallengeComplete({ score, streak, totalCompleted, onNewChallenge }) {
+export default function ChallengeComplete({ score, streak, totalCompleted, dailyCorrect, dailySkipped, onNewChallenge }) {
   return (
     <div className="h-screen bg-gray-900 flex items-center justify-center p-6">
       <div className="bg-gradient-to-r from-green-500 to-blue-600 text-white rounded-2xl shadow-2xl p-12 text-center max-w-2xl">
         <div className="text-6xl mb-4">🎉</div>
         <h2 className="text-4xl font-bold mb-4">대박! Challenge Complete!</h2>
         <p className="text-xl mb-2">You scored {score} points today!</p>
-        <p className="text-lg mb-6">Streak: {streak} days 🔥</p>
+        <p className="text-lg mb-4">Streak: {streak} days 🔥</p>
+
+        {/* #15 — breakdown */}
+        <div className="bg-white/20 rounded-xl p-4 mb-6 flex justify-center gap-8 text-sm">
+          <div>
+            <p className="font-bold text-2xl">{dailyCorrect}</p>
+            <p className="opacity-80">Correct</p>
+          </div>
+          <div>
+            <p className="font-bold text-2xl">{dailySkipped}</p>
+            <p className="opacity-80">Skipped</p>
+          </div>
+          <div>
+            <p className="font-bold text-2xl">
+              {dailyCorrect + dailySkipped > 0
+                ? Math.round((dailyCorrect / (dailyCorrect + dailySkipped)) * 100)
+                : 0}%
+            </p>
+            <p className="opacity-80">Accuracy</p>
+          </div>
+        </div>
+
         {totalCompleted === 500 && (
           <div className="bg-yellow-400 text-yellow-900 rounded-xl p-4 mb-4">
             <Trophy className="inline mr-2" size={32} />

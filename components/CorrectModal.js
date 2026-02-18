@@ -1,6 +1,18 @@
 'use client'
 
+import { useEffect } from 'react'
+
 export default function CorrectModal({ word, points, onNext }) {
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        onNext()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onNext])
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
       <div className="bg-gray-800 rounded-2xl shadow-2xl p-5 md:p-8 max-w-md w-full border-2 border-green-500">

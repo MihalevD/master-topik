@@ -12,6 +12,7 @@ import CorrectModal from '@/components/CorrectModal'
 import PracticeCard from '@/components/PracticeCard'
 import Sidebar from '@/components/Sidebar'
 import ChallengeComplete from '@/components/ChallengeComplete'
+import TypingGame from '@/components/TypingGame'
 
 export default function Home() {
   const [user, setUser] = useState(null)
@@ -29,120 +30,64 @@ export default function Home() {
   const [wordStats, setWordStats] = useState({})
   const [currentView, setCurrentView] = useState('practice')
   const [reviewMode, setReviewMode] = useState(false)
-  const [soundEnabled, setSoundEnabled] = useState(true)
-  const [wordsGenerated, setWordsGenerated] = useState(false)
   const [dailyCorrect, setDailyCorrect] = useState(0)
-  const wordsGeneratedRef = React.useRef(false)
+  const [dailySkipped, setDailySkipped] = useState(0) // #15
+  const [error, setError] = useState(null)            // #10
+  const wordsGeneratedRef = React.useRef(false)        // #4 — single source of truth (removed state)
 
-  const checkUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    setUser(session?.user || null)
-    if (session?.user && !wordsGenerated) {
-      await loadUserData()
-    }
-    setLoading(false)
-  }
-
-  const loadUserData = async () => {
-    const { data: stats } = await getUserStats()
-    if (stats) {
-      setTotalCompleted(stats.total_completed || 0)
-      setScore(stats.current_score || 0)
-      setStreak(stats.streak || 0)
-
-      const today = new Date().toISOString().split('T')[0]
-      const lastLogin = stats.last_login
-
-      if (lastLogin !== today) {
-        const yesterday = new Date()
-        yesterday.setDate(yesterday.getDate() - 1)
-        const yesterdayStr = yesterday.toISOString().split('T')[0]
-
-        const newStreak = lastLogin === yesterdayStr ? stats.streak + 1 : 0
-        setStreak(newStreak)
-        setDailyCorrect(0)
-        setScore(0)
-        await saveUserStats(stats.total_completed, 0, newStreak, today, 0)
-      } else {
-        const dailyCorrectFromDB = stats.daily_correct || 0
-        setDailyCorrect(dailyCorrectFromDB)
-      }
+  // --- #8: SM-2 inspired spaced repetition priority ---
+  const calculateWordPriority = (word, freshWordStats) => {
+    const ws = freshWordStats ?? wordStats
+    const stats = ws[word.korean] || {
+      attempts: 0, correct: 0, hintsUsed: 0, examplesUsed: 0, lastSeen: 0
     }
 
-    const { data: progress } = await getWordProgress()
-    if (progress) {
-      const statsObj = {}
-      progress.forEach(p => {
-        statsObj[p.word_korean] = {
-          attempts: p.attempts,
-          correct: p.correct,
-          hintsUsed: p.hints_used,
-          examplesUsed: p.examples_used,
-          lastSeen: new Date(p.last_seen).getTime()
-        }
-      })
-      setWordStats(statsObj)
-    }
+    // New words: elevated but not max priority
+    if (stats.attempts === 0) return 60
 
-    if (!wordsGenerated && !wordsGeneratedRef.current) {
-      generateDailyWords()
-      setWordsGenerated(true)
-      wordsGeneratedRef.current = true
-    }
-  }
-
-  useEffect(() => {
-    let mounted = true
-
-    checkUser()
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!mounted) return
-
-      const wasLoggedOut = !user && session?.user
-      setUser(session?.user || null)
-      if (wasLoggedOut && session?.user) {
-        loadUserData()
-      }
-    })
-
-    return () => {
-      mounted = false
-      authListener?.subscription?.unsubscribe()
-    }
-  }, [])
-
-  const calculateWordPriority = (word) => {
-    const stats = wordStats[word.korean] || {
-      attempts: 0,
-      correct: 0,
-      hintsUsed: 0,
-      examplesUsed: 0,
-      lastSeen: 0
-    }
-
-    const accuracy = stats.attempts > 0 ? stats.correct / stats.attempts : 0.5
-    const hintPenalty = stats.hintsUsed * 2
-    const examplePenalty = stats.examplesUsed
+    const accuracy = stats.correct / stats.attempts
     const daysSinceLastSeen = (Date.now() - (stats.lastSeen || 0)) / (1000 * 60 * 60 * 24)
 
-    return (1 - accuracy) * 100 + hintPenalty + examplePenalty + (daysSinceLastSeen * 5)
+    // Rate-based penalties (not total count) — a 10% hint rate matters more than 5 total hints on a word seen 200 times
+    const hintRate = stats.hintsUsed / stats.attempts
+    const exampleRate = stats.examplesUsed / stats.attempts
+    const adjustedAccuracy = Math.max(0, accuracy - hintRate * 0.25 - exampleRate * 0.1)
+
+    // SM-2 ease factor: maps adjusted accuracy to 1.3–2.5 scale
+    const easeFactor = Math.max(1.3, 2.5 + (adjustedAccuracy - 0.6) * 3)
+
+    // Exponential interval growth: 1 → 6 → 6·EF → 6·EF² → … capped at 30 days
+    let interval
+    if (stats.correct <= 1) interval = 1
+    else if (stats.correct === 2) interval = 6
+    else interval = Math.min(30, Math.round(6 * Math.pow(easeFactor, stats.correct - 2)))
+
+    // Poor accuracy resets to daily review
+    if (adjustedAccuracy < 0.6) interval = 1
+
+    // Not yet due → low priority
+    if (daysSinceLastSeen < interval) {
+      return (1 - adjustedAccuracy) * 10
+    }
+
+    // Due or overdue → ratio-based scaling, capped at 3× to avoid drowning new words
+    const overdueRatio = Math.min(daysSinceLastSeen / Math.max(interval, 1), 3)
+    return (1 - adjustedAccuracy) * 100 + overdueRatio * 25
   }
 
-  const generateDailyWords = () => {
-    if (wordsGeneratedRef.current && dailyWords.length > 0) {
-      return
-    }
+  // --- #11: generateDailyWords accepts freshWordStats to avoid stale closure ---
+  const generateDailyWords = (freshWordStats) => {
+    if (wordsGeneratedRef.current && dailyWords.length > 0) return
 
     const topikIIUnlocked = totalCompleted >= 500
     let availableWords = topikIIUnlocked ? allWords : topikIWords
 
     if (reviewMode) {
+      const ws = freshWordStats ?? wordStats
       availableWords = availableWords.filter(word => {
-        const stats = wordStats[word.korean]
+        const stats = ws[word.korean]
         if (!stats || stats.attempts === 0) return false
-        const accuracy = stats.correct / stats.attempts
-        return accuracy < 0.8
+        return stats.correct / stats.attempts < 0.8
       })
 
       if (availableWords.length === 0) {
@@ -152,9 +97,9 @@ export default function Home() {
       }
     }
 
-    const sortedByPriority = [...availableWords].sort((a, b) => {
-      return calculateWordPriority(b) - calculateWordPriority(a)
-    })
+    const sortedByPriority = [...availableWords].sort((a, b) =>
+      calculateWordPriority(b, freshWordStats) - calculateWordPriority(a, freshWordStats)
+    )
 
     const bufferSize = dailyChallenge * 3
     const difficultCount = Math.floor(bufferSize * 0.7)
@@ -172,17 +117,95 @@ export default function Home() {
     setShowHint(false)
     setShowExample(false)
     setFeedback('')
-    setWordsGenerated(true)
     wordsGeneratedRef.current = true
   }
 
+  const checkUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    setUser(session?.user || null)
+    if (session?.user && !wordsGeneratedRef.current) { // #4 — use ref only
+      await loadUserData()
+    }
+    setLoading(false)
+  }
+
+  // --- #10: error handling around Supabase calls ---
+  const loadUserData = async () => {
+    try {
+      const { data: stats, error: statsError } = await getUserStats()
+      if (statsError) throw statsError
+
+      if (stats) {
+        setTotalCompleted(stats.total_completed || 0)
+        setScore(stats.current_score || 0)
+        setStreak(stats.streak || 0)
+
+        const today = new Date().toISOString().split('T')[0]
+        const lastLogin = stats.last_login
+
+        if (lastLogin !== today) {
+          const yesterday = new Date()
+          yesterday.setDate(yesterday.getDate() - 1)
+          const yesterdayStr = yesterday.toISOString().split('T')[0]
+
+          const newStreak = lastLogin === yesterdayStr ? stats.streak + 1 : 0
+          setStreak(newStreak)
+          setDailyCorrect(0)
+          setScore(0)
+          await saveUserStats(stats.total_completed, 0, newStreak, today, 0)
+        } else {
+          setDailyCorrect(stats.daily_correct || 0) // #13 — console.log removed
+        }
+      }
+
+      const { data: progress, error: progressError } = await getWordProgress()
+      if (progressError) throw progressError
+
+      let freshWordStats = {}
+      if (progress) {
+        progress.forEach(p => {
+          freshWordStats[p.word_korean] = {
+            attempts: p.attempts,
+            correct: p.correct,
+            hintsUsed: p.hints_used,
+            examplesUsed: p.examples_used,
+            lastSeen: new Date(p.last_seen).getTime()
+          }
+        })
+        setWordStats(freshWordStats)
+      }
+
+      if (!wordsGeneratedRef.current) {
+        generateDailyWords(freshWordStats) // #11 — pass fresh stats to avoid stale closure
+      }
+    } catch (err) {
+      setError('Failed to load data. Please check your connection.')
+    }
+  }
+
+  useEffect(() => {
+    let mounted = true
+
+    checkUser()
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return
+      const wasLoggedOut = !user && session?.user
+      setUser(session?.user || null)
+      if (wasLoggedOut && session?.user) {
+        loadUserData()
+      }
+    })
+
+    return () => {
+      mounted = false
+      authListener?.subscription?.unsubscribe()
+    }
+  }, [])
+
   const updateWordStats = async (word, isCorrect, usedHint, usedExample) => {
     const stats = wordStats[word.korean] || {
-      attempts: 0,
-      correct: 0,
-      hintsUsed: 0,
-      examplesUsed: 0,
-      lastSeen: 0
+      attempts: 0, correct: 0, hintsUsed: 0, examplesUsed: 0, lastSeen: 0
     }
 
     const newStats = {
@@ -195,16 +218,17 @@ export default function Home() {
 
     setWordStats({ ...wordStats, [word.korean]: newStats })
 
-    await saveWordProgress(
-      word.korean,
-      newStats.attempts,
-      newStats.correct,
-      newStats.hintsUsed,
-      newStats.examplesUsed
-    )
+    try {
+      await saveWordProgress(word.korean, newStats.attempts, newStats.correct, newStats.hintsUsed, newStats.examplesUsed)
+    } catch {
+      setError('Failed to save progress. Your streak may not be recorded.')
+    }
   }
 
-  const handleNextWord = () => {
+  // --- #15: isSkip param to track skipped words ---
+  const handleNextWord = (isSkip = false) => {
+    if (isSkip) setDailySkipped(prev => prev + 1)
+
     if (dailyCorrect >= dailyChallenge) {
       setFeedback('complete')
     } else if (currentIndex < dailyWords.length - 1) {
@@ -220,7 +244,6 @@ export default function Home() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-
     if (!input.trim()) return
 
     const currentWord = dailyWords[currentIndex]
@@ -241,8 +264,12 @@ export default function Home() {
       setTotalCompleted(newTotal)
       setDailyCorrect(newDailyCorrect)
 
-      const today = new Date().toISOString().split('T')[0]
-      await saveUserStats(newTotal, newScore, streak, today, newDailyCorrect)
+      try {
+        const today = new Date().toISOString().split('T')[0]
+        await saveUserStats(newTotal, newScore, streak, today, newDailyCorrect)
+      } catch {
+        setError('Failed to save stats. Please check your connection.')
+      }
     } else {
       setFeedback('wrong')
     }
@@ -283,21 +310,14 @@ export default function Home() {
     return 'Hard'
   }
 
-  const getCurrentRank = () => {
-    return ranks.find(rank => totalCompleted >= rank.min && totalCompleted <= rank.max)
-  }
+  const getCurrentRank = () => ranks.find(r => totalCompleted >= r.min && totalCompleted <= r.max)
 
-  const getHardWords = () => {
-    return Object.entries(wordStats)
-      .filter(([_, stats]) => stats.attempts > 0)
-      .map(([korean, stats]) => ({
-        korean,
-        accuracy: stats.correct / stats.attempts,
-        attempts: stats.attempts
-      }))
+  const getHardWords = () =>
+    Object.entries(wordStats)
+      .filter(([_, s]) => s.attempts > 0)
+      .map(([korean, s]) => ({ korean, accuracy: s.correct / s.attempts, attempts: s.attempts }))
       .sort((a, b) => a.accuracy - b.accuracy)
       .slice(0, 10)
-  }
 
   const getAccuracyData = () => {
     const totalAttempts = Object.values(wordStats).reduce((sum, s) => sum + s.attempts, 0)
@@ -315,52 +335,35 @@ export default function Home() {
     )
   }
 
-  if (!user) {
-    return <AuthComponent />
-  }
+  if (!user) return <AuthComponent />
 
   const currentRank = getCurrentRank()
   const topikIIUnlocked = totalCompleted >= 500
 
+  if (currentView === 'typing') {
+    return <TypingGame setCurrentView={setCurrentView} />
+  }
+
   if (currentView === 'stats') {
-    return (
-      <StatsView
-        totalCompleted={totalCompleted}
-        streak={streak}
-        hardWords={getHardWords()}
-        accuracy={getAccuracyData()}
-        setCurrentView={setCurrentView}
-      />
-    )
+    return <StatsView totalCompleted={totalCompleted} streak={streak} hardWords={getHardWords()} accuracy={getAccuracyData()} setCurrentView={setCurrentView} />
   }
 
   if (currentView === 'achievements') {
-    return (
-      <AchievementsView
-        totalCompleted={totalCompleted}
-        streak={streak}
-        setCurrentView={setCurrentView}
-      />
-    )
+    return <AchievementsView totalCompleted={totalCompleted} streak={streak} setCurrentView={setCurrentView} />
   }
 
   if (currentView === 'settings') {
     return (
       <SettingsView
-        dailyChallenge={dailyChallenge}
-        setDailyChallenge={setDailyChallenge}
-        soundEnabled={soundEnabled}
-        setSoundEnabled={setSoundEnabled}
-        reviewMode={reviewMode}
-        setReviewMode={setReviewMode}
+        dailyChallenge={dailyChallenge} setDailyChallenge={setDailyChallenge}
+        reviewMode={reviewMode} setReviewMode={setReviewMode}
         setCurrentView={setCurrentView}
-        wordsGeneratedRef={wordsGeneratedRef}
-        generateDailyWords={generateDailyWords}
+        wordsGeneratedRef={wordsGeneratedRef} generateDailyWords={generateDailyWords}
       />
     )
   }
 
-  if (dailyWords.length === 0 && currentView === 'practice') {
+  if (dailyWords.length === 0) {
     return (
       <div className="h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-2xl text-purple-400">Loading words...</div>
@@ -374,11 +377,17 @@ export default function Home() {
         score={score}
         streak={streak}
         totalCompleted={totalCompleted}
-        onNewChallenge={() => {
+        dailyCorrect={dailyCorrect}   // #15
+        dailySkipped={dailySkipped}   // #15
+        onNewChallenge={() => {       // #2 — reset both score and dailyCorrect
           wordsGeneratedRef.current = false
           generateDailyWords()
           setScore(0)
+          setDailyCorrect(0)
+          setDailySkipped(0)
           setFeedback('')
+          const today = new Date().toISOString().split('T')[0]
+          saveUserStats(totalCompleted, 0, streak, today, 0)
         }}
       />
     )
@@ -397,6 +406,14 @@ export default function Home() {
         <CorrectModal word={currentWord} points={points} onNext={handleNextWord} />
       )}
 
+      {/* #10 — error toast */}
+      {error && (
+        <div className="bg-red-900 border-b border-red-700 text-red-200 px-4 py-2 text-sm flex justify-between items-center z-50">
+          <span>⚠ {error}</span>
+          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-100 ml-4 font-bold">✕</button>
+        </div>
+      )}
+
       <NavBar
         currentView={currentView}
         setCurrentView={setCurrentView}
@@ -405,7 +422,7 @@ export default function Home() {
         handleSignOut={handleSignOut}
       />
 
-      <div className="flex-1 p-3 md:p-6 overflow-y-auto md:overflow-hidden">
+      <div className="flex-1 p-3 md:p-6 overflow-y-auto md:overflow-hidden pb-[5.5rem] md:pb-6">
         <div className="max-w-7xl mx-auto md:h-full grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-2 flex flex-col justify-center">
             <PracticeCard
@@ -441,15 +458,56 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Mobile bottom bar — improved */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 z-40">
+        {/* Stats row */}
+        <div className="flex items-center justify-between px-4 pt-2.5 pb-1">
+          <div className="flex items-center gap-4">
+            {/* Today progress */}
+            <div className="flex items-baseline gap-0.5">
+              <span className="text-base font-bold text-purple-400">{dailyCorrect}</span>
+              <span className="text-xs text-gray-500">/{dailyChallenge}</span>
+              <span className="text-xs text-gray-500 ml-1">words</span>
+            </div>
+            {/* Score */}
+            <div className="flex items-baseline gap-1">
+              <span className="text-xs text-gray-500">⚡</span>
+              <span className="text-sm font-bold text-pink-400">{score}</span>
+            </div>
+            {/* Streak */}
+            <div className="flex items-baseline gap-1">
+              <span className="text-xs">🔥</span>
+              <span className="text-sm font-bold text-orange-400">{streak}</span>
+            </div>
+          </div>
+          <button
+            onClick={handleReviewDifficult}
+            className="bg-red-900 hover:bg-red-800 border border-red-700 text-red-300 text-xs px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition-colors"
+          >
+            Review ↻
+          </button>
+        </div>
+        {/* Progress bar row */}
+        <div className="flex items-center gap-2 px-4 pb-3">
+          <div className="flex-1 bg-gray-800 rounded-full h-3 overflow-hidden">
+            <div
+              className="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full transition-all duration-500"
+              style={{ width: `${Math.min(progress, 100)}%` }}
+            />
+          </div>
+          <span className="text-xs font-bold text-gray-400 tabular-nums w-9 text-right">
+            {Math.round(progress)}%
+          </span>
+        </div>
+      </div>
+
       <style jsx>{`
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
           25% { transform: translateX(-10px); }
           75% { transform: translateX(10px); }
         }
-        .animate-shake {
-          animation: shake 0.3s;
-        }
+        .animate-shake { animation: shake 0.3s; }
       `}</style>
     </div>
   )

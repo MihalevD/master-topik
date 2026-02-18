@@ -4,7 +4,6 @@ import { Settings as SettingsIcon } from 'lucide-react'
 
 export default function SettingsView({
   dailyChallenge, setDailyChallenge,
-  soundEnabled, setSoundEnabled,
   reviewMode, setReviewMode,
   setCurrentView, wordsGeneratedRef, generateDailyWords
 }) {
@@ -42,19 +41,6 @@ export default function SettingsView({
                 <option value={25}>25 words (Standard)</option>
                 <option value={50}>50 words (Intense)</option>
               </select>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-bold text-white">Sound Effects</p>
-                <p className="text-sm text-gray-400">Play sounds on correct/wrong answers</p>
-              </div>
-              <button
-                onClick={() => setSoundEnabled(!soundEnabled)}
-                className={`px-4 py-2 rounded-lg ${soundEnabled ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400'} cursor-pointer`}
-              >
-                {soundEnabled ? 'ON' : 'OFF'}
-              </button>
             </div>
 
             <div className="flex items-center justify-between">

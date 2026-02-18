@@ -1,6 +1,6 @@
 'use client'
 
-import { Sparkles, Trophy, Flame, LogOut, BarChart3, Award, Settings as SettingsIcon } from 'lucide-react'
+import { Sparkles, Trophy, Flame, LogOut, BarChart3, Award, Settings as SettingsIcon, Keyboard } from 'lucide-react'
 
 export default function NavBar({ currentView, setCurrentView, currentRank, streak, handleSignOut }) {
   const tabClass = (view) =>
@@ -76,6 +76,10 @@ export default function NavBar({ currentView, setCurrentView, currentRank, strea
             <button onClick={() => setCurrentView('settings')} className={`px-4 py-2 rounded-lg ${currentView === 'settings' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
               <SettingsIcon className="inline mr-1" size={18} />
               Settings
+            </button>
+            <button onClick={() => setCurrentView('typing')} className={`px-4 py-2 rounded-lg ${currentView === 'typing' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
+              <Keyboard className="inline mr-1" size={18} />
+              Type
             </button>
           </div>
 

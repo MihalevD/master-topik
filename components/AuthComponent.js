@@ -5,6 +5,11 @@ import { ThemeSupa } from '@supabase/auth-ui-shared'
 import { supabase } from '@/lib/supabase'
 
 export default function AuthComponent() {
+  // Get the current URL dynamically
+  const redirectUrl = typeof window !== 'undefined' 
+    ? `${window.location.origin}/auth/callback`
+    : undefined
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex items-center justify-center p-6">
       <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
@@ -29,7 +34,7 @@ export default function AuthComponent() {
             }
           }}
           providers={['google']}
-          redirectTo={typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined}
+          redirectTo={redirectUrl}
           onlyThirdPartyProviders={false}
         />
         

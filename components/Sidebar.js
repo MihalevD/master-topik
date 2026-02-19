@@ -1,109 +1,148 @@
 'use client'
 
-import { Star, Lock, Brain, BookOpen } from 'lucide-react'
+import { useState } from 'react'
+import { Lock, Brain, BookOpen, Zap, Flame } from 'lucide-react'
 
 export default function Sidebar({
   dailyCorrect, dailyChallenge, score, progress,
   totalCompleted, topikIIUnlocked, currentRank, streak,
-  currentWord, onReviewDifficult
+  currentWord, onReviewDifficult, isReviewing
 }) {
+  const [showKoreanExample, setShowKoreanExample] = useState(false)
+
   return (
-    <div className="flex flex-col gap-4 justify-center">
-      {/* Daily Progress */}
-      <div className="bg-gray-800 rounded-xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <p className="text-xs text-gray-400">Today</p>
-            <p className="text-xl font-bold text-purple-400">{dailyCorrect}/{dailyChallenge}</p>
+    <div className="bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-700/50 overflow-hidden flex flex-col h-full">
+
+      {/* ── Daily progress ── */}
+      <div className="p-4 md:p-5">
+        {/* Today / Score row */}
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div className="bg-gray-900/50 rounded-xl px-3 py-2.5 border border-gray-700/50">
+            <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">Today</p>
+            <p className="text-xl font-bold leading-none">
+              <span className="text-purple-400">{dailyCorrect}</span>
+              <span className="text-gray-600 text-base">/{dailyChallenge}</span>
+            </p>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-gray-400">Score</p>
-            <p className="text-xl font-bold text-pink-400">
-              <Star className="inline" size={16} /> {score}
+          <div className="bg-gray-900/50 rounded-xl px-3 py-2.5 border border-gray-700/50">
+            <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">Score</p>
+            <p className="text-xl font-bold text-pink-400 leading-none flex items-center gap-1">
+              <Zap size={14} className="text-pink-500" />
+              {score}
             </p>
           </div>
         </div>
 
-        <div className="w-full bg-gray-700 rounded-full h-2 mb-3">
+        {/* Progress bar */}
+        <div className="w-full bg-gray-900/60 rounded-full h-2 mb-3 overflow-hidden">
           <div
-            className="bg-gradient-to-r from-purple-500 to-pink-500 h-full transition-all duration-500 rounded-full"
-            style={{ width: `${progress}%` }}
+            className="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full transition-all duration-500"
+            style={{ width: `${Math.min(progress, 100)}%` }}
           />
         </div>
 
+        {/* Review button */}
         <button
           onClick={onReviewDifficult}
-          className="w-full bg-gradient-to-r from-red-600 to-orange-600 text-white py-2 rounded-lg text-sm font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 cursor-pointer"
+          className="w-full bg-gradient-to-r from-red-600 to-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5 cursor-pointer"
         >
-          <Brain size={16} />
+          <Brain size={14} />
           Review 10 Difficult Words
         </button>
       </div>
 
-      {/* TOPIK Progress */}
-      <div className="bg-gray-800 rounded-xl p-4">
-        <p className="text-sm font-bold text-white mb-3">TOPIK Progress</p>
-        <div className="space-y-3">
+      <div className="mx-4 border-t border-gray-700/50" />
+
+      {/* ── TOPIK Progress ── */}
+      <div className="p-4 md:p-5">
+        <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-3">TOPIK Progress</p>
+        <div className="space-y-2.5">
           <div>
             <div className="flex justify-between mb-1">
-              <span className="text-xs text-blue-400">TOPIK I</span>
-              <span className="text-xs font-bold text-blue-300">{Math.min(totalCompleted, 500)}/500</span>
+              <span className="text-xs text-blue-400 font-medium">TOPIK I</span>
+              <span className="text-xs text-blue-300/70 tabular-nums">{Math.min(totalCompleted, 500)}/500</span>
             </div>
-            <div className="w-full bg-gray-700 rounded-full h-2">
-              <div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${Math.min((totalCompleted / 500) * 100, 100)}%` }} />
+            <div className="w-full bg-gray-900/60 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-blue-600 to-blue-400 h-full rounded-full transition-all duration-500"
+                style={{ width: `${Math.min((totalCompleted / 500) * 100, 100)}%` }}
+              />
             </div>
           </div>
           <div>
             <div className="flex justify-between mb-1">
-              <span className={`text-xs ${topikIIUnlocked ? 'text-purple-400' : 'text-gray-500'}`}>TOPIK II</span>
-              <span className={`text-xs font-bold ${topikIIUnlocked ? 'text-purple-300' : 'text-gray-500'}`}>
+              <span className={`text-xs font-medium ${topikIIUnlocked ? 'text-purple-400' : 'text-gray-600'}`}>TOPIK II</span>
+              <span className={`text-xs tabular-nums ${topikIIUnlocked ? 'text-purple-300/70' : 'text-gray-600'}`}>
                 {Math.max(0, totalCompleted - 500)}/500
               </span>
             </div>
-            <div className="w-full bg-gray-700 rounded-full h-2">
+            <div className="w-full bg-gray-900/60 rounded-full h-1.5 overflow-hidden">
               <div
-                className={`${topikIIUnlocked ? 'bg-purple-500' : 'bg-gray-600'} h-2 rounded-full transition-all`}
+                className={`h-full rounded-full transition-all duration-500 ${topikIIUnlocked ? 'bg-gradient-to-r from-purple-600 to-purple-400' : 'bg-gray-700'}`}
                 style={{ width: `${topikIIUnlocked ? Math.min(((totalCompleted - 500) / 500) * 100, 100) : 0}%` }}
               />
             </div>
           </div>
         </div>
         {!topikIIUnlocked && (
-          <div className="flex items-center gap-2 mt-3 text-gray-400 text-xs">
-            <Lock size={14} />
-            <span>{500 - totalCompleted} more to unlock TOPIK II</span>
-          </div>
+          <p className="flex items-center gap-1 mt-2.5 text-gray-600 text-[11px]">
+            <Lock size={11} />
+            {500 - totalCompleted} more to unlock TOPIK II
+          </p>
         )}
       </div>
 
-      {/* Overall Stats */}
-      <div className="bg-gray-800 rounded-xl p-4">
-        <p className="text-sm font-bold text-white mb-3">Stats</p>
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-gray-400">Total</span>
-            <span className="font-bold text-purple-400">{totalCompleted}</span>
+      <div className="mx-4 border-t border-gray-700/50" />
+
+      {/* ── Stats ── */}
+      <div className="p-4 md:p-5">
+        <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-3">Stats</p>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-gray-900/50 rounded-xl border border-gray-700/50 flex flex-col items-center justify-between py-2.5 px-1 min-h-[52px]">
+            <p className="text-lg font-bold text-purple-400 leading-none">{totalCompleted}</p>
+            <p className="text-[10px] text-gray-500 leading-none">Total</p>
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">Rank</span>
-            <span className="font-bold text-pink-400">{currentRank.level}</span>
+          <div className="bg-gray-900/50 rounded-xl border border-gray-700/50 flex flex-col items-center justify-between py-2.5 px-1 min-h-[52px]">
+            <p className="text-xs font-bold text-pink-400 leading-none">{currentRank.level}</p>
+            <p className="text-[10px] text-gray-500 leading-none">Rank</p>
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">Streak</span>
-            <span className="font-bold text-orange-400">{streak} 🔥</span>
+          <div className="bg-gray-900/50 rounded-xl border border-gray-700/50 flex flex-col items-center justify-between py-2.5 px-1 min-h-[52px]">
+            <p className="text-lg font-bold text-orange-400 leading-none flex items-center gap-0.5">
+              {streak}<Flame size={12} className="text-orange-500" />
+            </p>
+            <p className="text-[10px] text-gray-500 leading-none">Streak</p>
           </div>
         </div>
       </div>
 
-      {/* Example */}
-      <div className="bg-gray-800 rounded-xl p-4">
-        <p className="text-sm font-bold text-white mb-2">
-          <BookOpen className="inline mr-1" size={16} />
+      <div className="mx-4 border-t border-gray-700/50" />
+
+      {/* ── Example sentence ── */}
+      <div className="p-4 md:p-5 flex-1">
+        <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+          <BookOpen size={11} />
           Example
+          {isReviewing && (
+            <span className="ml-auto text-[9px] text-gray-600 normal-case tracking-normal">tap to toggle</span>
+          )}
         </p>
-        <div className="bg-gray-700 rounded-lg p-3">
-          <p className="text-sm text-gray-300 italic">"{currentWord.sentences[1]}"</p>
-        </div>
+        {isReviewing ? (
+          <button
+            onClick={() => setShowKoreanExample(v => !v)}
+            className="w-full text-left bg-gray-900/40 rounded-xl p-3 border border-gray-700/40 hover:border-purple-700/40 transition-colors cursor-pointer"
+          >
+            <p className="text-sm text-gray-300 italic leading-relaxed">
+              "{showKoreanExample ? currentWord.sentences[0] : currentWord.sentences[1]}"
+            </p>
+            <p className="text-[10px] text-gray-600 mt-1.5">
+              {showKoreanExample ? 'Korean' : 'English'} · click for {showKoreanExample ? 'English' : 'Korean'}
+            </p>
+          </button>
+        ) : (
+          <div className="bg-gray-900/40 rounded-xl p-3 border border-gray-700/40">
+            <p className="text-sm text-gray-300 italic leading-relaxed">"{currentWord.sentences[1]}"</p>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -4,7 +4,7 @@ import { Trophy } from 'lucide-react'
 
 export default function ChallengeComplete({ score, streak, totalCompleted, dailyCorrect, dailySkipped, onReview, onNewChallenge }) {
   return (
-    <div className="h-screen bg-gray-900 flex items-center justify-center p-6">
+    <div className="flex-1 flex items-center justify-center p-6">
       <div className="bg-gradient-to-r from-green-500 to-blue-600 text-white rounded-2xl shadow-2xl p-12 text-center max-w-2xl">
         <div className="text-6xl mb-4">🎉</div>
         <h2 className="text-4xl font-bold mb-4">대박! Challenge Complete!</h2>

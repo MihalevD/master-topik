@@ -13,8 +13,8 @@ export default function AchievementsView({ totalCompleted, streak, setCurrentVie
   ]
 
   return (
-    <div className="h-screen bg-gray-900 flex flex-col overflow-hidden">
-      <div className="p-4 border-b border-gray-800">
+    <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="md:hidden p-4 border-b border-gray-800">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <button
             onClick={() => setCurrentView('practice')}

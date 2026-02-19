@@ -1,6 +1,6 @@
 'use client'
 
-import { Sparkles, Trophy, Flame, LogOut, BarChart3, Award, Settings as SettingsIcon, Keyboard } from 'lucide-react'
+import { Sparkles, Trophy, Flame, LogOut, BarChart3, Award, Settings as SettingsIcon, Keyboard, BookOpen } from 'lucide-react'
 
 export default function NavBar({ currentView, setCurrentView, currentRank, streak, handleSignOut }) {
   const tabClass = (view) =>
@@ -25,6 +25,12 @@ export default function NavBar({ currentView, setCurrentView, currentRank, strea
               <span className="font-bold text-white text-xs">{streak}</span>
             </div>
             <button
+              onClick={() => setCurrentView('settings')}
+              className={`p-2 rounded-lg ${currentView === 'settings' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} cursor-pointer`}
+            >
+              <SettingsIcon size={16} />
+            </button>
+            <button
               onClick={handleSignOut}
               className="p-2 rounded-lg bg-gray-800 text-white hover:bg-gray-700 cursor-pointer"
             >
@@ -44,9 +50,9 @@ export default function NavBar({ currentView, setCurrentView, currentRank, strea
             <Award className="inline mr-1" size={14} />
             Badges
           </button>
-          <button onClick={() => setCurrentView('settings')} className={tabClass('settings')}>
-            <SettingsIcon className="inline mr-1" size={14} />
-            Settings
+          <button onClick={() => setCurrentView('learn')} className={tabClass('learn')}>
+            <BookOpen className="inline mr-1" size={14} />
+            Learn
           </button>
         </div>
       </div>
@@ -73,13 +79,13 @@ export default function NavBar({ currentView, setCurrentView, currentRank, strea
               <Award className="inline mr-1" size={18} />
               Badges
             </button>
-            <button onClick={() => setCurrentView('settings')} className={`px-4 py-2 rounded-lg ${currentView === 'settings' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
-              <SettingsIcon className="inline mr-1" size={18} />
-              Settings
-            </button>
             <button onClick={() => setCurrentView('typing')} className={`px-4 py-2 rounded-lg ${currentView === 'typing' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
               <Keyboard className="inline mr-1" size={18} />
               Type
+            </button>
+            <button onClick={() => setCurrentView('learn')} className={`px-4 py-2 rounded-lg ${currentView === 'learn' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
+              <BookOpen className="inline mr-1" size={18} />
+              Learn
             </button>
           </div>
 
@@ -92,6 +98,9 @@ export default function NavBar({ currentView, setCurrentView, currentRank, strea
               <Flame className="text-orange-500" size={16} />
               <span className="font-bold text-white text-sm">{streak}</span>
             </div>
+            <button onClick={() => setCurrentView('settings')} className={`p-2 rounded-lg ${currentView === 'settings' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
+              <SettingsIcon size={18} />
+            </button>
             <button onClick={handleSignOut} className="p-2 rounded-lg bg-gray-800 text-white hover:bg-gray-700 cursor-pointer">
               <LogOut size={18} />
             </button>

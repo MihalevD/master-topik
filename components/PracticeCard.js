@@ -8,166 +8,175 @@ export default function PracticeCard({
   handleSubmit, handleNextWord, currentWordDifficulty,
   reverseMode, onSpeak,
 }) {
-  // Normal:  show English → user types Korean
-  // Reverse: show Korean  → user types English
-  const questionLabel   = reverseMode ? 'What does this mean?' : 'Translate to Korean'
-  const hintAnswer      = reverseMode ? word.english           : word.korean
+  const questionLabel    = reverseMode ? 'What does this mean?' : 'Translate to Korean'
+  const hintAnswer       = reverseMode ? word.english           : word.korean
   const inputPlaceholder = reverseMode ? 'Type English meaning…' : 'Type Korean…'
 
+  const difficultyStyle =
+    currentWordDifficulty === 'Hard'   ? 'bg-red-500/15 text-red-300 border border-red-500/30' :
+    currentWordDifficulty === 'Medium' ? 'bg-yellow-500/15 text-yellow-300 border border-yellow-500/30' :
+    currentWordDifficulty === 'Easy'   ? 'bg-green-500/15 text-green-300 border border-green-500/30' :
+                                         'bg-blue-500/15 text-blue-300 border border-blue-500/30'
+
   return (
-    <div className="bg-gray-800 rounded-2xl shadow-2xl p-4 md:p-8 3xl:p-12">
+    <div className="bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-700/50 px-5 md:px-8 3xl:px-12 pt-5 md:pt-6 pb-5 md:pb-6">
 
-      {/* Top badges */}
-      <div className="flex justify-center items-center gap-2 mb-4 md:mb-6">
-        <span className={`px-3 py-1 rounded-full text-xs md:text-sm font-bold ${
-          currentWordDifficulty === 'Hard'   ? 'bg-red-900 text-red-300' :
-          currentWordDifficulty === 'Medium' ? 'bg-yellow-900 text-yellow-300' :
-          currentWordDifficulty === 'Easy'   ? 'bg-green-900 text-green-300' :
-                                               'bg-blue-900 text-blue-300'
-        }`}>
-          <Brain className="inline mr-1" size={12} />
-          {currentWordDifficulty}
-        </span>
-        {reverseMode && (
-          <span className="px-3 py-1 rounded-full text-xs font-bold bg-orange-900 text-orange-300">
-            <RefreshCw className="inline mr-1" size={11} />
-            Reverse
+      {/* ── UPPER ZONE: badges + image + word ── */}
+      <div className="flex flex-col items-center">
+
+        {/* Badges */}
+        <div className="flex items-center gap-2 mb-4 md:mb-5">
+          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${difficultyStyle}`}>
+            <Brain size={11} />
+            {currentWordDifficulty}
           </span>
+          {reverseMode && (
+            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/15 text-orange-300 border border-orange-500/30">
+              <RefreshCw size={11} />
+              Reverse
+            </span>
+          )}
+        </div>
+
+        {/* Image */}
+        {word.image && (
+          <div className="rounded-2xl overflow-hidden shadow-xl ring-1 ring-white/10 mb-4 md:mb-5 flex-shrink-0">
+            <img
+              src={word.image}
+              alt={word.english}
+              className="w-32 h-32 md:w-40 md:h-40 3xl:w-52 3xl:h-52 object-cover"
+              loading="lazy"
+            />
+          </div>
         )}
-      </div>
 
-      {/* Question */}
-      <div className="text-center mb-6 md:mb-8">
-        <p className="text-xs md:text-sm 3xl:text-base text-gray-400 mb-2 md:mb-3 3xl:mb-4">{questionLabel}</p>
+        {/* Question label + word */}
+        <div className="text-center">
+          <p className="text-[11px] font-medium text-gray-500 uppercase tracking-[0.15em] mb-2 md:mb-3">
+            {questionLabel}
+          </p>
 
-        {reverseMode ? (
-          /* Reverse: big Korean word + always-visible romanization */
-          <div>
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <h2 className="text-4xl md:text-6xl 3xl:text-8xl font-bold text-white">
+          {reverseMode ? (
+            <div className="flex items-center justify-center gap-2">
+              <h2 className="text-4xl md:text-5xl 3xl:text-7xl font-bold text-white tracking-tight">
                 {word.korean}
               </h2>
+              <span className="text-sm italic text-gray-500 flex-shrink-0">({word.romanization})</span>
               <button
                 type="button"
                 onClick={() => onSpeak(word.korean)}
-                className="p-2 3xl:p-3 rounded-full bg-gray-700 hover:bg-gray-600 text-gray-400 hover:text-purple-300 transition-colors cursor-pointer flex-shrink-0"
-                title="Listen to pronunciation"
+                className="p-2 rounded-full bg-gray-700/80 hover:bg-purple-600 text-gray-400 hover:text-white transition-all cursor-pointer flex-shrink-0"
+                title="Listen"
               >
-                <Volume2 size={20} className="3xl:w-7 3xl:h-7" />
+                <Volume2 size={16} />
               </button>
             </div>
-            <p className="text-base md:text-lg 3xl:text-xl italic text-gray-400">
-              ({word.romanization})
-            </p>
-          </div>
-        ) : (
-          /* Normal: big English word + blurred romanization */
-          <div>
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <h2 className="text-3xl md:text-5xl 3xl:text-7xl font-bold text-white">
+          ) : (
+            <div className="flex items-center justify-center gap-2">
+              <h2 className="text-3xl md:text-5xl 3xl:text-6xl font-bold text-white tracking-tight">
                 {word.english}
               </h2>
+              <span className={`text-base md:text-lg italic transition-all duration-300 flex-shrink-0 ${
+                showExample ? 'text-gray-400' : 'text-gray-400 blur-sm select-none'
+              }`}>
+                ({word.romanization})
+              </span>
               <button
                 type="button"
                 onClick={() => onSpeak(word.korean)}
-                className="p-2 3xl:p-3 rounded-full bg-gray-700 hover:bg-gray-600 text-gray-400 hover:text-purple-300 transition-colors cursor-pointer flex-shrink-0"
-                title="Hear Korean pronunciation"
+                className="p-2 rounded-full bg-gray-700/80 hover:bg-purple-600 text-gray-400 hover:text-white transition-all cursor-pointer flex-shrink-0"
+                title="Hear pronunciation"
               >
-                <Volume2 size={20} className="3xl:w-7 3xl:h-7" />
+                <Volume2 size={16} />
               </button>
             </div>
-            <p className={`text-base md:text-xl 3xl:text-2xl italic transition-all duration-300 ${
-              showExample ? 'text-gray-400' : 'text-gray-600 blur-sm select-none'
-            }`}>
-              ({word.romanization})
-            </p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Input Form */}
-      <form onSubmit={handleSubmit} className="mb-4 md:mb-6">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-          placeholder={inputPlaceholder}
-          className={`w-full text-2xl md:text-4xl 3xl:text-6xl text-center p-3 md:p-4 3xl:p-5 border-4 rounded-xl mb-3 md:mb-4 3xl:mb-5 transition-all bg-gray-700 text-white ${
-            feedback === 'wrong'
-              ? 'border-red-400 bg-red-900 animate-shake'
-              : 'border-purple-500 focus:border-purple-400 focus:outline-none'
-          }`}
-          autoFocus
-        />
+      {/* ── LOWER ZONE: form + hints ── */}
+      <div className="mt-5 md:mt-6">
+        <form onSubmit={handleSubmit} className="mb-3">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+            placeholder={inputPlaceholder}
+            className={`w-full text-xl md:text-3xl 3xl:text-5xl text-center p-3 md:p-3.5 rounded-xl mb-3 transition-all bg-gray-900/60 text-white placeholder-gray-600 focus:outline-none border-2 ${
+              feedback === 'wrong'
+                ? 'border-red-500/70 bg-red-900/20 animate-shake'
+                : 'border-gray-700 focus:border-purple-500 focus:bg-gray-900/80'
+            }`}
+            autoFocus
+          />
 
-        {feedback === 'wrong' ? (
-          <div className="flex gap-2 md:gap-3">
+          {feedback === 'wrong' ? (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => { setFeedback(''); setInput(''); setShowHint(false) }}
+                className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-xl font-bold text-base hover:opacity-90 transition-opacity cursor-pointer"
+              >
+                Try Again
+              </button>
+              <button
+                type="button"
+                onClick={() => handleNextWord(true)}
+                className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-200 py-3 rounded-xl font-bold text-base transition-colors cursor-pointer"
+              >
+                Skip →
+              </button>
+            </div>
+          ) : (
             <button
-              type="button"
-              onClick={() => { setFeedback(''); setInput(''); setShowHint(false) }}
-              className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 md:py-4 3xl:py-5 rounded-xl font-bold text-base md:text-xl 3xl:text-2xl hover:opacity-90 transition-opacity shadow-lg cursor-pointer"
+              type="submit"
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-xl font-bold text-base md:text-lg hover:opacity-90 transition-opacity cursor-pointer"
             >
-              Try Again
+              Submit Answer
             </button>
-            <button
-              type="button"
-              onClick={() => handleNextWord(true)}
-              className="flex-1 bg-gradient-to-r from-gray-600 to-gray-700 text-white py-3 md:py-4 3xl:py-5 rounded-xl font-bold text-base md:text-xl 3xl:text-2xl hover:opacity-90 transition-opacity shadow-lg cursor-pointer"
-            >
-              Skip →
-            </button>
+          )}
+        </form>
+
+        {feedback === 'wrong' && (
+          <div className="px-4 py-2 bg-red-500/10 text-red-300 rounded-xl text-center text-sm border border-red-500/20 mb-3">
+            ✗ Wrong — try again or skip
           </div>
-        ) : (
+        )}
+
+        {/* Hint buttons */}
+        <div className="flex gap-2 justify-center flex-wrap">
           <button
-            type="submit"
-            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 md:py-4 3xl:py-5 rounded-xl font-bold text-base md:text-xl 3xl:text-2xl hover:opacity-90 transition-opacity shadow-lg cursor-pointer"
+            onClick={() => { if (!showHint) setShowHint(true) }}
+            disabled={showHint}
+            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              showHint
+                ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 cursor-default'
+                : 'bg-gray-700/60 hover:bg-gray-700 text-gray-400 hover:text-yellow-300 border border-gray-700 hover:border-yellow-700/50 cursor-pointer'
+            }`}
           >
-            Submit Answer
+            {showHint ? <EyeOff size={14} /> : <Eye size={14} />}
+            {showHint ? hintAnswer : 'Show Answer (-5)'}
           </button>
+
+          <button
+            onClick={() => setShowExample(!showExample)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gray-700/60 hover:bg-gray-700 text-gray-400 hover:text-blue-300 border border-gray-700 hover:border-blue-700/50 transition-all text-sm font-medium cursor-pointer"
+          >
+            <BookOpen size={14} />
+            {reverseMode
+              ? (showExample ? 'Hide Example' : 'Show Example (-3)')
+              : (showExample ? 'Hide Romanization' : 'Show Romanization (-3)')}
+          </button>
+        </div>
+
+        {reverseMode && showExample && word.sentences?.[0] && (
+          <div className="mt-3 p-3 bg-blue-900/20 rounded-xl border border-blue-800/40 text-center">
+            <p className="text-blue-300 text-sm">{word.sentences[0]}</p>
+            <p className="text-blue-400/70 text-xs italic mt-1">{word.sentences[1]}</p>
+          </div>
         )}
-      </form>
-
-      {/* Wrong Feedback */}
-      {feedback === 'wrong' && (
-        <div className="p-3 md:p-4 bg-red-900 text-red-200 rounded-xl text-center font-bold border border-red-500 mb-3 md:mb-4 text-sm md:text-base">
-          ✗ Wrong! Try again or skip
-        </div>
-      )}
-
-      {/* Hint Buttons */}
-      <div className="flex gap-2 md:gap-3 justify-center mt-4 md:mt-6 3xl:mt-8 flex-wrap">
-        <button
-          onClick={() => { if (!showHint) setShowHint(true) }}
-          disabled={showHint}
-          className={`flex items-center gap-1 md:gap-2 px-3 md:px-4 3xl:px-5 py-2 3xl:py-2.5 rounded-lg transition-colors text-sm 3xl:text-base font-bold ${
-            showHint
-              ? 'bg-yellow-700 text-yellow-300 cursor-not-allowed'
-              : 'bg-yellow-900 hover:bg-yellow-800 text-yellow-200 cursor-pointer'
-          }`}
-        >
-          {showHint ? <EyeOff size={16} /> : <Eye size={16} />}
-          {showHint ? hintAnswer : 'Show Answer (-5)'}
-        </button>
-
-        <button
-          onClick={() => setShowExample(!showExample)}
-          className="flex items-center gap-1 md:gap-2 px-3 md:px-4 3xl:px-5 py-2 3xl:py-2.5 rounded-lg transition-colors bg-blue-900 hover:bg-blue-800 text-blue-200 cursor-pointer text-sm 3xl:text-base"
-        >
-          <BookOpen size={16} />
-          {reverseMode
-            ? (showExample ? 'Hide Example' : 'Show Example (-3)')
-            : (showExample ? 'Hide Romanization' : 'Show Romanization (-3)')}
-        </button>
       </div>
-
-      {/* Example sentence (reverse mode: shown when toggled; normal: shown in sidebar) */}
-      {reverseMode && showExample && word.sentences?.[0] && (
-        <div className="mt-3 p-3 bg-blue-900/30 rounded-xl border border-blue-800 text-center">
-          <p className="text-blue-300 text-sm font-medium">{word.sentences[0]}</p>
-          <p className="text-blue-400 text-xs italic mt-1">{word.sentences[1]}</p>
-        </div>
-      )}
     </div>
   )
 }

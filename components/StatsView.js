@@ -4,8 +4,8 @@ import { BarChart3 } from 'lucide-react'
 
 export default function StatsView({ totalCompleted, streak, hardWords, accuracy, setCurrentView }) {
   return (
-    <div className="h-screen bg-gray-900 flex flex-col overflow-hidden">
-      <div className="p-4 border-b border-gray-800">
+    <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="md:hidden p-4 border-b border-gray-800">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <button
             onClick={() => setCurrentView('practice')}
@@ -40,21 +40,20 @@ export default function StatsView({ totalCompleted, streak, hardWords, accuracy,
 
           <div className="bg-gray-800 rounded-xl p-6">
             <h3 className="text-xl font-bold text-white mb-4">Words to Review (Lowest Accuracy)</h3>
-            <div className="space-y-3">
-              {hardWords.length > 0 ? hardWords.map((word, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-gray-700">
-                  <div>
-                    <span className="text-xl font-bold text-white">{word.korean}</span>
-                    <span className="text-sm ml-3 text-gray-400">({word.attempts} attempts)</span>
+            {hardWords.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {hardWords.map((word, i) => (
+                  <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-700 border border-gray-600">
+                    <span className="font-bold text-white text-sm">{word.korean}</span>
+                    <span className={`text-xs font-semibold ${word.accuracy < 0.3 ? 'text-red-400' : word.accuracy < 0.6 ? 'text-yellow-400' : 'text-green-400'}`}>
+                      {(word.accuracy * 100).toFixed(0)}%
+                    </span>
                   </div>
-                  <div className={`text-lg font-bold ${word.accuracy < 0.3 ? 'text-red-400' : word.accuracy < 0.6 ? 'text-yellow-400' : 'text-green-400'}`}>
-                    {(word.accuracy * 100).toFixed(0)}%
-                  </div>
-                </div>
-              )) : (
-                <p className="text-center text-gray-400">Start practicing to see your stats!</p>
-              )}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-gray-400">Start practicing to see your stats!</p>
+            )}
           </div>
         </div>
       </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { supabase, saveWordProgress, getWordProgress, saveUserStats, getUserStats } from '@/lib/supabase'
+import { supabase, saveWordProgress, getWordProgress, saveUserStats, getUserStats, saveDailyChallenge, getDailyChallenge } from '@/lib/supabase'
 import { topikIWords, allWords, ranks } from '@/lib/words'
 import AuthComponent from '@/components/AuthComponent'
 import NavBar from '@/components/NavBar'
@@ -13,6 +13,8 @@ import PracticeCard from '@/components/PracticeCard'
 import Sidebar from '@/components/Sidebar'
 import ChallengeComplete from '@/components/ChallengeComplete'
 import TypingGame from '@/components/TypingGame'
+import LearnView from '@/components/LearnView'
+import GrammarGame from '@/components/GrammarGame'
 
 export default function Home() {
   const [user, setUser] = useState(null)
@@ -44,6 +46,7 @@ export default function Home() {
   const [dailyCorrect, setDailyCorrect] = useState(0)
   const [dailySkipped, setDailySkipped] = useState(0) // #15
   const [isReviewing, setIsReviewing] = useState(false)
+  const [grammarCategories, setGrammarCategories] = useState(null)
   const [error, setError] = useState(null)            // #10
   const wordsGeneratedRef = React.useRef(false)        // #4 — single source of truth (removed state)
 
@@ -94,6 +97,9 @@ export default function Home() {
     const topikIIUnlocked = totalCompleted >= 500
     let availableWords = topikIIUnlocked ? allWords : topikIWords
 
+    // TEST: only use words that have images
+    availableWords = availableWords.filter(word => word.image)
+
     if (reviewMode) {
       const ws = freshWordStats ?? wordStats
       availableWords = availableWords.filter(word => {
@@ -122,6 +128,7 @@ export default function Home() {
 
     const selected = [...difficultWords, ...randomWords].sort(() => Math.random() - 0.5)
 
+    saveDailyChallenge(selected.map(w => w.korean)) // persist for cross-device sync
     setDailyWords(selected)
     setCurrentIndex(0)
     setInput('')
@@ -187,7 +194,26 @@ export default function Home() {
       }
 
       if (!wordsGeneratedRef.current) {
-        generateDailyWords(freshWordStats) // #11 — pass fresh stats to avoid stale closure
+        // Try to restore today's saved challenge (cross-device sync)
+        const { data: saved } = await getDailyChallenge()
+        if (saved?.word_koreans?.length > 0) {
+          const words = saved.word_koreans
+            .map(korean => allWords.find(w => w.korean === korean))
+            .filter(Boolean)
+          if (words.length > 0) {
+            setDailyWords(words)
+            setCurrentIndex(0)
+            setInput('')
+            setShowHint(false)
+            setShowExample(false)
+            setFeedback('')
+            wordsGeneratedRef.current = true
+          } else {
+            generateDailyWords(freshWordStats)
+          }
+        } else {
+          generateDailyWords(freshWordStats)
+        }
       }
     } catch (err) {
       if (err?.status === 406 || err?.code === 'PGRST116') {
@@ -324,6 +350,18 @@ export default function Home() {
     setUser(null)
   }
 
+  const handleNewChallenge = () => {
+    setIsReviewing(false)
+    wordsGeneratedRef.current = false
+    generateDailyWords()
+    setScore(0)
+    setDailyCorrect(0)
+    setDailySkipped(0)
+    setFeedback('')
+    const today = new Date().toISOString().split('T')[0]
+    saveUserStats(totalCompleted, 0, streak, today, 0)
+  }
+
   const handleReviewDifficult = () => {
     const difficultWords = Object.entries(wordStats)
       .filter(([_, stats]) => stats.attempts > 0 && stats.correct / stats.attempts < 0.8)
@@ -388,75 +426,15 @@ export default function Home() {
     return <TypingGame setCurrentView={setCurrentView} />
   }
 
-  if (currentView === 'stats') {
-    return <StatsView totalCompleted={totalCompleted} streak={streak} hardWords={getHardWords()} accuracy={getAccuracyData()} setCurrentView={setCurrentView} />
-  }
-
-  if (currentView === 'achievements') {
-    return <AchievementsView totalCompleted={totalCompleted} streak={streak} setCurrentView={setCurrentView} />
-  }
-
-  if (currentView === 'settings') {
-    return (
-      <SettingsView
-        dailyChallenge={dailyChallenge} setDailyChallenge={setDailyChallenge}
-        reviewMode={reviewMode} setReviewMode={setReviewMode}
-        reverseMode={reverseMode} setReverseMode={setReverseMode}
-        setCurrentView={setCurrentView}
-        wordsGeneratedRef={wordsGeneratedRef} generateDailyWords={generateDailyWords}
-      />
-    )
-  }
-
-  if (dailyWords.length === 0) {
-    return (
-      <div className="h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-2xl text-purple-400">Loading words...</div>
-      </div>
-    )
-  }
-
-  if (feedback === 'complete') {
-    return (
-      <ChallengeComplete
-        score={score}
-        streak={streak}
-        totalCompleted={totalCompleted}
-        dailyCorrect={dailyCorrect}   // #15
-        dailySkipped={dailySkipped}   // #15
-        onReview={() => {
-          setIsReviewing(true)
-          setCurrentIndex(0)
-          setInput('')
-          setFeedback('')
-          setShowHint(false)
-          setShowExample(false)
-        }}
-        onNewChallenge={() => {
-          setIsReviewing(false)
-          wordsGeneratedRef.current = false
-          generateDailyWords()
-          setScore(0)
-          setDailyCorrect(0)
-          setDailySkipped(0)
-          setFeedback('')
-          const today = new Date().toISOString().split('T')[0]
-          saveUserStats(totalCompleted, 0, streak, today, 0)
-        }}
-      />
-    )
-  }
-
-  // --- Main Practice View ---
-
-  const currentWord = dailyWords[currentIndex]
+  // --- Practice view vars (safe defaults when no words loaded) ---
+  const currentWord = dailyWords.length > 0 ? dailyWords[currentIndex] : null
   const progress = (dailyCorrect / dailyChallenge) * 100
-  const currentWordDifficulty = getWordDifficulty(currentWord)
-  const points = showHint ? 5 : (showExample ? 7 : 10)
+  const currentWordDifficulty = currentWord ? getWordDifficulty(currentWord) : 'New'
+  const points = isReviewing ? 0 : showHint ? 5 : showExample ? 7 : 10
 
   return (
     <div className="h-screen bg-gray-900 flex flex-col overflow-hidden">
-      {feedback === 'correct' && (
+      {currentWord && feedback === 'correct' && (
         <CorrectModal word={currentWord} points={points} onNext={handleNextWord} onSpeak={speakKorean} />
       )}
 
@@ -476,46 +454,108 @@ export default function Home() {
         handleSignOut={handleSignOut}
       />
 
-      <div className="flex-1 p-3 overflow-y-auto md:overflow-hidden pb-[5.5rem] md:pb-4">
-        <div className="max-w-7xl mx-auto md:h-full grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2 flex flex-col justify-center">
-            <PracticeCard
-              word={currentWord}
-              input={input}
-              setInput={setInput}
-              feedback={feedback}
-              setFeedback={setFeedback}
-              showHint={showHint}
-              setShowHint={setShowHint}
-              showExample={showExample}
-              setShowExample={setShowExample}
-              handleSubmit={handleSubmit}
-              handleNextWord={handleNextWord}
-              currentWordDifficulty={currentWordDifficulty}
-              reverseMode={reverseMode}
-              onSpeak={speakKorean}
-            />
-          </div>
-
-          <div className="hidden md:flex md:col-span-1 flex-col justify-center">
-            <Sidebar
-              dailyCorrect={dailyCorrect}
-              dailyChallenge={dailyChallenge}
-              score={score}
-              progress={progress}
-              totalCompleted={totalCompleted}
-              topikIIUnlocked={topikIIUnlocked}
-              currentRank={currentRank}
-              streak={streak}
-              currentWord={currentWord}
-              onReviewDifficult={handleReviewDifficult}
-            />
-          </div>
+      {/* Fixed review-mode banner */}
+      {isReviewing && currentView === 'practice' && (
+        <div className="fixed top-16 md:top-20 left-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl border border-purple-500/50 bg-gray-900/95 backdrop-blur-md whitespace-nowrap animate-banner-tick">
+          <span className="text-purple-300 text-sm font-semibold">📖 Review · no points</span>
+          <div className="w-px h-4 bg-purple-700" />
+          <button
+            onClick={handleNewChallenge}
+            className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-4 py-1.5 rounded-xl text-sm font-bold transition-all cursor-pointer shadow-md"
+          >
+            New Challenge →
+          </button>
         </div>
-      </div>
+      )}
 
-      {/* Mobile bottom bar — improved */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 z-40">
+      {currentView === 'learn' && (
+        <LearnView setCurrentView={setCurrentView} onStartGame={(cats) => { setGrammarCategories(cats); setCurrentView('grammar-game') }} />
+      )}
+      {currentView === 'grammar-game' && (
+        <GrammarGame wordStats={wordStats} allWords={allWords} onClose={() => setCurrentView('learn')} selectedCategories={grammarCategories} />
+      )}
+      {currentView === 'stats' && (
+        <StatsView totalCompleted={totalCompleted} streak={streak} hardWords={getHardWords()} accuracy={getAccuracyData()} setCurrentView={setCurrentView} />
+      )}
+      {currentView === 'achievements' && (
+        <AchievementsView totalCompleted={totalCompleted} streak={streak} setCurrentView={setCurrentView} />
+      )}
+      {currentView === 'settings' && (
+        <SettingsView
+          dailyChallenge={dailyChallenge} setDailyChallenge={setDailyChallenge}
+          reviewMode={reviewMode} setReviewMode={setReviewMode}
+          reverseMode={reverseMode} setReverseMode={setReverseMode}
+          setCurrentView={setCurrentView}
+          wordsGeneratedRef={wordsGeneratedRef} generateDailyWords={generateDailyWords}
+        />
+      )}
+
+      {currentView === 'practice' && (
+        <>
+          {feedback === 'complete' ? (
+            <ChallengeComplete
+              score={score}
+              streak={streak}
+              totalCompleted={totalCompleted}
+              dailyCorrect={dailyCorrect}
+              dailySkipped={dailySkipped}
+              onReview={() => {
+                setIsReviewing(true)
+                setCurrentIndex(0)
+                setInput('')
+                setFeedback('')
+                setShowHint(false)
+                setShowExample(false)
+              }}
+              onNewChallenge={handleNewChallenge}
+            />
+          ) : dailyWords.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-2xl text-purple-400">Loading words...</div>
+            </div>
+          ) : (
+            <>
+              <div className="flex-1 p-4 overflow-y-auto md:overflow-hidden md:flex md:items-center pb-[5.5rem] md:pb-4">
+                <div className="max-w-5xl w-full mx-auto">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:items-stretch">
+                  <div className="md:col-span-2 flex flex-col">
+                    <PracticeCard
+                      word={currentWord}
+                      input={input}
+                      setInput={setInput}
+                      feedback={feedback}
+                      setFeedback={setFeedback}
+                      showHint={showHint}
+                      setShowHint={setShowHint}
+                      showExample={showExample}
+                      setShowExample={setShowExample}
+                      handleSubmit={handleSubmit}
+                      handleNextWord={handleNextWord}
+                      currentWordDifficulty={currentWordDifficulty}
+                      reverseMode={reverseMode}
+                      onSpeak={speakKorean}
+                    />
+                  </div>
+                  <div className="hidden md:flex md:col-span-1 flex-col">
+                    <Sidebar
+                      dailyCorrect={dailyCorrect}
+                      dailyChallenge={dailyChallenge}
+                      score={score}
+                      progress={progress}
+                      totalCompleted={totalCompleted}
+                      topikIIUnlocked={topikIIUnlocked}
+                      currentRank={currentRank}
+                      streak={streak}
+                      currentWord={currentWord}
+                      onReviewDifficult={handleReviewDifficult}
+                      isReviewing={isReviewing}
+                    />
+                  </div>
+                </div>
+                </div> {/* closes max-w-5xl */}
+              </div>
+              {/* Mobile bottom bar — improved */}
+              <div className="md:hidden fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 z-40">
         {/* Stats row */}
         <div className="flex items-center justify-between px-4 pt-2.5 pb-1">
           <div className="flex items-center gap-4">
@@ -557,14 +597,19 @@ export default function Home() {
         </div>
       </div>
 
-      <style jsx>{`
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-10px); }
-          75% { transform: translateX(10px); }
-        }
-        .animate-shake { animation: shake 0.3s; }
-      `}</style>
+              <style jsx>{`
+                @keyframes shake {
+                  0%, 100% { transform: translateX(0); }
+                  25% { transform: translateX(-10px); }
+                  75% { transform: translateX(10px); }
+                }
+                .animate-shake { animation: shake 0.3s; }
+              `}</style>
+            </>
+          )}
+        </>
+      )}
+
     </div>
   )
 }

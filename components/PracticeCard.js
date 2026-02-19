@@ -1,6 +1,8 @@
 'use client'
 
+import { useState, useRef, useEffect } from 'react'
 import { Eye, EyeOff, BookOpen, Brain, Volume2, RefreshCw } from 'lucide-react'
+import { KEY_MAP, EMPTY_STATE, getFullText, addJamo, backspace } from '@/lib/hangulComposer'
 
 export default function PracticeCard({
   word, input, setInput, feedback, setFeedback,
@@ -8,6 +10,37 @@ export default function PracticeCard({
   handleSubmit, handleNextWord, currentWordDifficulty,
   reverseMode, onSpeak,
 }) {
+  const [krMode, setKrMode] = useState(false)
+  const composer = useRef(EMPTY_STATE)
+  const internalUpdate = useRef(false)
+
+  // Reset composer when input is cleared externally (e.g. after submit/skip)
+  useEffect(() => {
+    if (!internalUpdate.current && input === '') {
+      composer.current = EMPTY_STATE
+    }
+    internalUpdate.current = false
+  }, [input])
+
+  function handleKeyDown(e) {
+    if (!krMode || reverseMode) return
+    if (e.ctrlKey || e.metaKey || e.altKey) return
+
+    if (e.key === 'Backspace') {
+      e.preventDefault()
+      composer.current = backspace(composer.current)
+      internalUpdate.current = true
+      setInput(getFullText(composer.current))
+      return
+    }
+
+    const jamo = KEY_MAP[e.shiftKey ? e.key.toUpperCase() : e.key]
+    if (!jamo) return
+    e.preventDefault()
+    composer.current = addJamo(composer.current, jamo)
+    internalUpdate.current = true
+    setInput(getFullText(composer.current))
+  }
   const questionLabel    = reverseMode ? 'What does this mean?' : 'Translate to Korean'
   const hintAnswer       = reverseMode ? word.english           : word.korean
   const inputPlaceholder = reverseMode ? 'Type English meaning…' : 'Type Korean…'
@@ -97,19 +130,36 @@ export default function PracticeCard({
       {/* ── LOWER ZONE: form + hints ── */}
       <div className="mt-5 md:mt-6">
         <form onSubmit={handleSubmit} className="mb-3">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-            placeholder={inputPlaceholder}
-            className={`w-full text-xl md:text-3xl 3xl:text-5xl text-center p-3 md:p-3.5 rounded-xl mb-3 transition-all bg-gray-900/60 text-white placeholder-gray-600 focus:outline-none border-2 ${
-              feedback === 'wrong'
-                ? 'border-red-500/70 bg-red-900/20 animate-shake'
-                : 'border-gray-700 focus:border-purple-500 focus:bg-gray-900/80'
-            }`}
-            autoFocus
-          />
+          <div className="relative mb-3">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => { if (!krMode || reverseMode) setInput(e.target.value) }}
+              onKeyDown={handleKeyDown}
+              onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+              placeholder={inputPlaceholder}
+              className={`w-full text-xl md:text-3xl 3xl:text-5xl text-center p-3 md:p-3.5 rounded-xl transition-all bg-gray-900/60 text-white placeholder-gray-600 focus:outline-none border-2 ${
+                feedback === 'wrong'
+                  ? 'border-red-500/70 bg-red-900/20 animate-shake'
+                  : 'border-gray-700 focus:border-purple-500 focus:bg-gray-900/80'
+              }`}
+              autoFocus
+            />
+            {!reverseMode && (
+              <button
+                type="button"
+                onClick={() => setKrMode(m => !m)}
+                title={krMode ? 'Switch to direct input' : 'Enable Korean keyboard (QWERTY → 한글)'}
+                className={`absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                  krMode
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-700 text-gray-400 hover:text-white'
+                }`}
+              >
+                {krMode ? '한' : 'A'}
+              </button>
+            )}
+          </div>
 
           {feedback === 'wrong' ? (
             <div className="flex gap-2">

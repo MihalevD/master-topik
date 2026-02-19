@@ -17,6 +17,7 @@ import LearnView from '@/components/LearnView'
 import GrammarGame from '@/components/GrammarGame'
 import ProfileView from '@/components/ProfileView'
 import DictionaryView from '@/components/DictionaryView'
+import AlphabetView from '@/components/AlphabetView'
 
 export default function Home() {
   const [user, setUser] = useState(null)
@@ -482,6 +483,9 @@ export default function Home() {
       {currentView === 'dictionary' && (
         <DictionaryView wordStats={wordStats} allWords={allWords} />
       )}
+      {currentView === 'alphabet' && (
+        <AlphabetView />
+      )}
       {currentView === 'stats' && (
         <StatsView totalCompleted={totalCompleted} streak={streak} hardWords={getHardWords()} accuracy={getAccuracyData()} setCurrentView={setCurrentView} />
       )}
@@ -523,6 +527,21 @@ export default function Home() {
             </div>
           ) : (
             <>
+              {totalCompleted === 0 && Object.keys(wordStats).length === 0 && (
+                <div className="mx-4 mt-4 p-4 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-center gap-4">
+                  <span className="text-3xl flex-shrink-0">한</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-semibold text-sm">New to Korean?</p>
+                    <p className="text-gray-400 text-xs">Learn the Hangul alphabet before you start — it only takes a few minutes.</p>
+                  </div>
+                  <button
+                    onClick={() => setCurrentView('alphabet')}
+                    className="flex-shrink-0 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold px-3 py-2 rounded-xl cursor-pointer transition-colors whitespace-nowrap"
+                  >
+                    Learn Hangul →
+                  </button>
+                </div>
+              )}
               <div className="flex-1 p-4 overflow-y-auto md:overflow-hidden md:flex md:items-center pb-[5.5rem] md:pb-4">
                 <div className="max-w-5xl w-full mx-auto">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:items-stretch">

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Sparkles, Trophy, Flame, LogOut, Settings as SettingsIcon, Keyboard, BookOpen, BookMarked, X, Lock, Check } from 'lucide-react'
+import { Sparkles, Trophy, Flame, LogOut, Settings as SettingsIcon, Keyboard, BookOpen, BookMarked, Languages, X, Lock, Check } from 'lucide-react'
 import { ranks } from '@/lib/words'
 
 const rankMeta = {
@@ -87,6 +87,10 @@ export default function NavBar({ currentView, setCurrentView, currentRank, strea
               <BookMarked className="inline mr-1" size={14} />
               Dictionary
             </button>
+            <button onClick={() => setCurrentView('alphabet')} className={tabClass('alphabet')}>
+              <Languages className="inline mr-1" size={14} />
+              Hangul
+            </button>
           </div>
         </div>
 
@@ -115,6 +119,10 @@ export default function NavBar({ currentView, setCurrentView, currentRank, strea
               <button onClick={() => setCurrentView('dictionary')} className={`px-4 py-2 rounded-lg ${currentView === 'dictionary' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
                 <BookMarked className="inline mr-1" size={18} />
                 Dictionary
+              </button>
+              <button onClick={() => setCurrentView('alphabet')} className={`px-4 py-2 rounded-lg ${currentView === 'alphabet' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
+                <Languages className="inline mr-1" size={18} />
+                Hangul
               </button>
             </div>
 

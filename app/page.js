@@ -15,6 +15,7 @@ import ChallengeComplete from '@/components/ChallengeComplete'
 import TypingGame from '@/components/TypingGame'
 import LearnView from '@/components/LearnView'
 import GrammarGame from '@/components/GrammarGame'
+import ProfileView from '@/components/ProfileView'
 
 export default function Home() {
   const [user, setUser] = useState(null)
@@ -473,6 +474,9 @@ export default function Home() {
       )}
       {currentView === 'grammar-game' && (
         <GrammarGame wordStats={wordStats} allWords={allWords} onClose={() => setCurrentView('learn')} selectedCategories={grammarCategories} />
+      )}
+      {currentView === 'profile' && (
+        <ProfileView totalCompleted={totalCompleted} streak={streak} hardWords={getHardWords()} accuracy={getAccuracyData()} setCurrentView={setCurrentView} />
       )}
       {currentView === 'stats' && (
         <StatsView totalCompleted={totalCompleted} streak={streak} hardWords={getHardWords()} accuracy={getAccuracyData()} setCurrentView={setCurrentView} />

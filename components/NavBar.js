@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Sparkles, Trophy, Flame, LogOut, BarChart3, Award, Settings as SettingsIcon, Keyboard, BookOpen, X, Lock, Check } from 'lucide-react'
+import { Sparkles, Trophy, Flame, LogOut, Settings as SettingsIcon, Keyboard, BookOpen, X, Lock, Check } from 'lucide-react'
 import { ranks } from '@/lib/words'
 
 const rankMeta = {
@@ -57,10 +57,10 @@ export default function NavBar({ currentView, setCurrentView, currentRank, strea
                 <Trophy className={rankColor.text} size={14} />
                 <span className={`font-bold text-xs ${rankColor.text}`}>{englishName}</span>
               </button>
-              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-gray-800 border border-orange-500">
+              <button onClick={() => setCurrentView('profile')} className="flex items-center gap-1 px-2 py-1 rounded-full bg-gray-800 border border-orange-500 cursor-pointer hover:opacity-80 transition-opacity">
                 <Flame className="text-orange-500" size={14} />
                 <span className="font-bold text-white text-xs">{streak}</span>
-              </div>
+              </button>
               <button
                 onClick={() => setCurrentView('settings')}
                 className={`p-2 rounded-lg ${currentView === 'settings' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} cursor-pointer`}
@@ -78,14 +78,6 @@ export default function NavBar({ currentView, setCurrentView, currentRank, strea
           <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
             <button onClick={() => setCurrentView('practice')} className={tabClass('practice')}>
               Practice
-            </button>
-            <button onClick={() => setCurrentView('stats')} className={tabClass('stats')}>
-              <BarChart3 className="inline mr-1" size={14} />
-              Stats
-            </button>
-            <button onClick={() => setCurrentView('achievements')} className={tabClass('achievements')}>
-              <Award className="inline mr-1" size={14} />
-              Badges
             </button>
             <button onClick={() => setCurrentView('learn')} className={tabClass('learn')}>
               <BookOpen className="inline mr-1" size={14} />
@@ -108,14 +100,6 @@ export default function NavBar({ currentView, setCurrentView, currentRank, strea
               <button onClick={() => setCurrentView('practice')} className={`px-4 py-2 rounded-lg ${currentView === 'practice' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
                 Practice
               </button>
-              <button onClick={() => setCurrentView('stats')} className={`px-4 py-2 rounded-lg ${currentView === 'stats' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
-                <BarChart3 className="inline mr-1" size={18} />
-                Stats
-              </button>
-              <button onClick={() => setCurrentView('achievements')} className={`px-4 py-2 rounded-lg ${currentView === 'achievements' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
-                <Award className="inline mr-1" size={18} />
-                Badges
-              </button>
               <button onClick={() => setCurrentView('typing')} className={`px-4 py-2 rounded-lg ${currentView === 'typing' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
                 <Keyboard className="inline mr-1" size={18} />
                 Type
@@ -134,10 +118,10 @@ export default function NavBar({ currentView, setCurrentView, currentRank, strea
                 <Trophy className={rankColor.text} size={16} />
                 <span className={`font-bold text-sm ${rankColor.text}`}>{englishName}</span>
               </button>
-              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-800 border border-orange-500">
+              <button onClick={() => setCurrentView('profile')} className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-800 border border-orange-500 cursor-pointer hover:opacity-80 transition-opacity">
                 <Flame className="text-orange-500" size={16} />
                 <span className="font-bold text-white text-sm">{streak}</span>
-              </div>
+              </button>
               <button onClick={() => setCurrentView('settings')} className={`p-2 rounded-lg ${currentView === 'settings' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
                 <SettingsIcon size={18} />
               </button>

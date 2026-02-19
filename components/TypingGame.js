@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { ArrowLeft, RotateCcw, Trophy, Zap, Star, Keyboard } from 'lucide-react'
+import { KEY_MAP as QWERTY_MAP, EMPTY_STATE, getFullText, addJamo, backspace } from '@/lib/hangulComposer'
 
-// Korean 2-beolsik keyboard map (key → jamo)
-const KEY_MAP = {
+// Korean 2-beolsik keyboard map (jamo → QWERTY key, used for key hints)
+const JAMO_TO_KEY = {
   'ㅂ': 'Q', 'ㅈ': 'W', 'ㄷ': 'E', 'ㄱ': 'R', 'ㅅ': 'T',
   'ㅛ': 'Y', 'ㅕ': 'U', 'ㅑ': 'I', 'ㅐ': 'O', 'ㅔ': 'P',
   'ㅁ': 'A', 'ㄴ': 'S', 'ㅇ': 'D', 'ㄹ': 'F', 'ㅎ': 'G',
@@ -30,7 +31,7 @@ function decomposeToJamo(char) {
 
 function getKeyHint(char) {
   const jamo = decomposeToJamo(char)
-  return jamo.map(j => KEY_MAP[j] || '?').join(' + ')
+  return jamo.map(j => JAMO_TO_KEY[j] || '?').join(' + ')
 }
 
 const VOWELS = ['ㅏ', 'ㅑ', 'ㅓ', 'ㅕ', 'ㅗ', 'ㅛ', 'ㅜ', 'ㅠ', 'ㅡ', 'ㅣ', 'ㅐ', 'ㅔ']
@@ -112,13 +113,24 @@ export default function TypingGame({ setCurrentView }) {
   const [charStartTime, setCharStartTime] = useState(null)
   const [liveMs, setLiveMs] = useState(0)
   const [charVisible, setCharVisible] = useState(true)
+  const [krMode, setKrMode] = useState(false)
 
   const inputRef = useRef(null)
   const liveTimerRef = useRef(null)
   const advancingRef = useRef(false)
+  const composer = useRef(EMPTY_STATE)
+  const internalUpdate = useRef(false)
 
   const mode = MODES.find(m => m.id === selectedMode) || MODES[2]
   const currentChar = queue[currentIdx]
+
+  // Reset composer when input is cleared externally (new char, game start, etc.)
+  useEffect(() => {
+    if (!internalUpdate.current && input === '') {
+      composer.current = EMPTY_STATE
+    }
+    internalUpdate.current = false
+  }, [input])
 
   // Focus input on phase change
   useEffect(() => {
@@ -182,7 +194,7 @@ export default function TypingGame({ setCurrentView }) {
   }, [currentIdx, rounds])
 
   const handleChange = useCallback((e) => {
-    if (advancingRef.current) return
+    if (advancingRef.current || krMode) return
     const val = e.target.value
     setInput(val)
     if (!currentChar) return
@@ -192,7 +204,34 @@ export default function TypingGame({ setCurrentView }) {
       const elapsed = Date.now() - charStartTime
       advance(elapsed)
     }
-  }, [currentChar, charStartTime, advance])
+  }, [currentChar, charStartTime, advance, krMode])
+
+  function handleKeyDown(e) {
+    if (!krMode || advancingRef.current) return
+    if (e.ctrlKey || e.metaKey || e.altKey) return
+
+    if (e.key === 'Backspace') {
+      e.preventDefault()
+      composer.current = backspace(composer.current)
+      internalUpdate.current = true
+      setInput(getFullText(composer.current))
+      return
+    }
+
+    const jamo = QWERTY_MAP[e.shiftKey ? e.key.toUpperCase() : e.key]
+    if (!jamo) return
+    e.preventDefault()
+    composer.current = addJamo(composer.current, jamo)
+    internalUpdate.current = true
+    const composed = getFullText(composer.current)
+    setInput(composed)
+
+    if (currentChar && composed.includes(currentChar)) {
+      const elapsed = Date.now() - charStartTime
+      composer.current = EMPTY_STATE
+      advance(elapsed)
+    }
+  }
 
   // Keyboard shortcut: Enter in menu triggers start
   useEffect(() => {
@@ -293,7 +332,7 @@ export default function TypingGame({ setCurrentView }) {
 
           {/* Hint */}
           <p className="text-center text-gray-600 text-xs">
-            Make sure your keyboard is in Korean (한국어) mode before starting
+            Use the <span className="text-gray-400 font-semibold">A / 한</span> toggle during the game to type Korean with a QWERTY keyboard
           </p>
         </div>
       </div>
@@ -385,6 +424,7 @@ export default function TypingGame({ setCurrentView }) {
             ref={inputRef}
             value={input}
             onChange={handleChange}
+            onKeyDown={handleKeyDown}
             className="opacity-0 absolute pointer-events-none w-0 h-0"
             aria-label="Type Korean character"
             autoComplete="off"
@@ -392,18 +432,30 @@ export default function TypingGame({ setCurrentView }) {
             spellCheck={false}
           />
 
-          {/* Visible input display */}
-          <div
-            onClick={() => inputRef.current?.focus()}
-            className={`w-40 h-14 flex items-center justify-center rounded-xl border-2 cursor-text transition-all ${
-              flash === 'correct'
-                ? `${mode.border} bg-gray-800`
-                : 'border-gray-700 bg-gray-800 hover:border-gray-600'
-            }`}
-          >
-            <span className={`text-2xl font-bold ${flash === 'correct' ? mode.accent : 'text-white'}`}>
-              {flash === 'correct' ? '✓' : (input || <span className="text-gray-600">type here</span>)}
-            </span>
+          {/* Visible input display + KR mode toggle */}
+          <div className="flex items-center gap-2">
+            <div
+              onClick={() => inputRef.current?.focus()}
+              className={`w-40 h-14 flex items-center justify-center rounded-xl border-2 cursor-text transition-all ${
+                flash === 'correct'
+                  ? `${mode.border} bg-gray-800`
+                  : 'border-gray-700 bg-gray-800 hover:border-gray-600'
+              }`}
+            >
+              <span className={`text-2xl font-bold ${flash === 'correct' ? mode.accent : 'text-white'}`}>
+                {flash === 'correct' ? '✓' : (input || <span className="text-gray-600">type here</span>)}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setKrMode(m => !m); inputRef.current?.focus() }}
+              title={krMode ? 'Switch to native Korean keyboard' : 'Enable QWERTY → Korean input'}
+              className={`px-2 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                krMode ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-400 hover:text-white'
+              }`}
+            >
+              {krMode ? '한' : 'A'}
+            </button>
           </div>
 
           <p className="text-gray-600 text-xs">Click the box above if focus is lost</p>

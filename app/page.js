@@ -16,6 +16,7 @@ import TypingGame from '@/components/TypingGame'
 import LearnView from '@/components/LearnView'
 import GrammarGame from '@/components/GrammarGame'
 import ProfileView from '@/components/ProfileView'
+import DictionaryView from '@/components/DictionaryView'
 
 export default function Home() {
   const [user, setUser] = useState(null)
@@ -477,6 +478,9 @@ export default function Home() {
       )}
       {currentView === 'profile' && (
         <ProfileView totalCompleted={totalCompleted} streak={streak} hardWords={getHardWords()} accuracy={getAccuracyData()} setCurrentView={setCurrentView} />
+      )}
+      {currentView === 'dictionary' && (
+        <DictionaryView wordStats={wordStats} allWords={allWords} />
       )}
       {currentView === 'stats' && (
         <StatsView totalCompleted={totalCompleted} streak={streak} hardWords={getHardWords()} accuracy={getAccuracyData()} setCurrentView={setCurrentView} />

@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import { Sparkles, Trophy, Flame, LogOut, Settings as SettingsIcon, BookOpen, BookMarked, Languages, X, Lock, Check } from 'lucide-react'
-import { ranks } from '@/lib/words'
+import { ranks } from '@/lib/ranks'
+import { useApp } from '@/app/providers'
 
 const rankMeta = {
   '초보자':      { en: 'Beginner',    emoji: '🌱' },
@@ -26,16 +28,23 @@ const colorMap = {
   yellow: { text: 'text-yellow-400', border: 'border-yellow-500/40', bg: 'bg-yellow-500/10', ring: 'ring-yellow-500/30', gradient: 'from-yellow-500/20 to-yellow-600/10' },
 }
 
-export default function NavBar({ currentView, setCurrentView, currentRank, streak, handleSignOut }) {
+export default function NavBar() {
+  const router = useRouter()
+  const pathname = usePathname()
+  const { getCurrentRank, streak, handleSignOut } = useApp()
   const [showRankPopup, setShowRankPopup] = useState(false)
 
-  const tabClass = (view) =>
-    `px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer whitespace-nowrap ${
-      currentView === view ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'
-    }`
-
+  const currentRank = getCurrentRank()
   const englishName = rankMeta[currentRank?.name]?.en || currentRank?.name || ''
   const rankColor = colorMap[currentRank?.color] || colorMap.gray
+
+  const isActive = (path) => pathname === path || (path === '/practice' && pathname === '/')
+  const nav = (path) => router.push(path)
+
+  const tabClass = (path) =>
+    `px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer whitespace-nowrap ${
+      isActive(path) ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'
+    }`
 
   return (
     <>
@@ -57,39 +66,31 @@ export default function NavBar({ currentView, setCurrentView, currentRank, strea
                 <Trophy className={rankColor.text} size={14} />
                 <span className={`font-bold text-xs ${rankColor.text}`}>{englishName}</span>
               </button>
-              <button onClick={() => setCurrentView('profile')} className="flex items-center gap-1 px-2 py-1 rounded-full bg-gray-800 border border-orange-500 cursor-pointer hover:opacity-80 transition-opacity">
+              <button onClick={() => nav('/profile')} className="flex items-center gap-1 px-2 py-1 rounded-full bg-gray-800 border border-orange-500 cursor-pointer hover:opacity-80 transition-opacity">
                 <Flame className="text-orange-500" size={14} />
                 <span className="font-bold text-white text-xs">{streak}</span>
               </button>
               <button
-                onClick={() => setCurrentView('settings')}
-                className={`p-2 rounded-lg ${currentView === 'settings' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} cursor-pointer`}
+                onClick={() => nav('/settings')}
+                className={`p-2 rounded-lg ${isActive('/settings') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} cursor-pointer`}
               >
                 <SettingsIcon size={16} />
               </button>
-              <button
-                onClick={handleSignOut}
-                className="p-2 rounded-lg bg-gray-800 text-white hover:bg-gray-700 cursor-pointer"
-              >
+              <button onClick={handleSignOut} className="p-2 rounded-lg bg-gray-800 text-white hover:bg-gray-700 cursor-pointer">
                 <LogOut size={16} />
               </button>
             </div>
           </div>
           <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
-            <button onClick={() => setCurrentView('practice')} className={tabClass('practice')}>
-              Practice
+            <button onClick={() => nav('/practice')} className={tabClass('/practice')}>Practice</button>
+            <button onClick={() => nav('/learn')} className={tabClass('/learn')}>
+              <BookOpen className="inline mr-1" size={14} />Learn
             </button>
-            <button onClick={() => setCurrentView('learn')} className={tabClass('learn')}>
-              <BookOpen className="inline mr-1" size={14} />
-              Learn
+            <button onClick={() => nav('/dictionary')} className={tabClass('/dictionary')}>
+              <BookMarked className="inline mr-1" size={14} />Dictionary
             </button>
-            <button onClick={() => setCurrentView('dictionary')} className={tabClass('dictionary')}>
-              <BookMarked className="inline mr-1" size={14} />
-              Dictionary
-            </button>
-            <button onClick={() => setCurrentView('alphabet')} className={tabClass('alphabet')}>
-              <Languages className="inline mr-1" size={14} />
-              Hangul
+            <button onClick={() => nav('/alphabet')} className={tabClass('/alphabet')}>
+              <Languages className="inline mr-1" size={14} />Hangul
             </button>
           </div>
         </div>
@@ -105,20 +106,17 @@ export default function NavBar({ currentView, setCurrentView, currentRank, strea
             </div>
 
             <div className="flex gap-2">
-              <button onClick={() => setCurrentView('practice')} className={`px-4 py-2 rounded-lg ${currentView === 'practice' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
+              <button onClick={() => nav('/practice')} className={`px-4 py-2 rounded-lg ${isActive('/practice') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
                 Practice
               </button>
-              <button onClick={() => setCurrentView('learn')} className={`px-4 py-2 rounded-lg ${currentView === 'learn' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
-                <BookOpen className="inline mr-1" size={18} />
-                Learn
+              <button onClick={() => nav('/learn')} className={`px-4 py-2 rounded-lg ${isActive('/learn') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
+                <BookOpen className="inline mr-1" size={18} />Learn
               </button>
-              <button onClick={() => setCurrentView('dictionary')} className={`px-4 py-2 rounded-lg ${currentView === 'dictionary' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
-                <BookMarked className="inline mr-1" size={18} />
-                Dictionary
+              <button onClick={() => nav('/dictionary')} className={`px-4 py-2 rounded-lg ${isActive('/dictionary') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
+                <BookMarked className="inline mr-1" size={18} />Dictionary
               </button>
-              <button onClick={() => setCurrentView('alphabet')} className={`px-4 py-2 rounded-lg ${currentView === 'alphabet' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
-                <Languages className="inline mr-1" size={18} />
-                Hangul
+              <button onClick={() => nav('/alphabet')} className={`px-4 py-2 rounded-lg ${isActive('/alphabet') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
+                <Languages className="inline mr-1" size={18} />Hangul
               </button>
             </div>
 
@@ -130,11 +128,11 @@ export default function NavBar({ currentView, setCurrentView, currentRank, strea
                 <Trophy className={rankColor.text} size={16} />
                 <span className={`font-bold text-sm ${rankColor.text}`}>{englishName}</span>
               </button>
-              <button onClick={() => setCurrentView('profile')} className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-800 border border-orange-500 cursor-pointer hover:opacity-80 transition-opacity">
+              <button onClick={() => nav('/profile')} className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-800 border border-orange-500 cursor-pointer hover:opacity-80 transition-opacity">
                 <Flame className="text-orange-500" size={16} />
                 <span className="font-bold text-white text-sm">{streak}</span>
               </button>
-              <button onClick={() => setCurrentView('settings')} className={`p-2 rounded-lg ${currentView === 'settings' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
+              <button onClick={() => nav('/settings')} className={`p-2 rounded-lg ${isActive('/settings') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
                 <SettingsIcon size={18} />
               </button>
               <button onClick={handleSignOut} className="p-2 rounded-lg bg-gray-800 text-white hover:bg-gray-700 cursor-pointer">
@@ -155,7 +153,6 @@ export default function NavBar({ currentView, setCurrentView, currentRank, strea
             className="bg-gray-900 rounded-2xl border border-gray-700/80 w-full max-w-xs shadow-2xl overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
-            {/* Header */}
             <div className={`bg-gradient-to-br ${rankColor.gradient} px-5 pt-5 pb-4 border-b border-gray-700/50`}>
               <div className="flex items-start justify-between">
                 <div>
@@ -174,7 +171,6 @@ export default function NavBar({ currentView, setCurrentView, currentRank, strea
               </div>
             </div>
 
-            {/* Rank list */}
             <div className="p-3 space-y-1 max-h-72 overflow-y-auto">
               {ranks.map((r, i) => {
                 const currentIdx = ranks.findIndex(x => x.name === currentRank?.name)

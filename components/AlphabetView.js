@@ -2,7 +2,15 @@
 
 import { useState } from 'react'
 import { Volume2, Keyboard } from 'lucide-react'
-import TypingGame from './TypingGame'
+import dynamic from 'next/dynamic'
+
+const TypingGame = dynamic(() => import('./TypingGame'), {
+  loading: () => (
+    <div className="flex-1 flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  ),
+})
 
 function speak(text) {
   if (typeof window === 'undefined' || !window.speechSynthesis) return

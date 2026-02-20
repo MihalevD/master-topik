@@ -20,7 +20,8 @@ export default function PracticePage() {
     reviewMode, reverseMode, dailyCorrect, setDailyCorrect,
     dailySkipped, setDailySkipped, isReviewing, setIsReviewing,
     setError, wordsGeneratedRef, generateDailyWords,
-    speakKorean, handleNewChallenge, handleReviewDifficult,
+    speakKorean, handleNewChallenge, handleReviewDifficult, handleReturnToChallenge,
+    savedChallenge,
     getWordDifficulty, getCurrentRank, recordScore,
   } = useApp()
 
@@ -93,12 +94,21 @@ export default function PracticePage() {
         <div className="fixed top-16 md:top-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl border border-purple-500/50 bg-gray-900/95 backdrop-blur-md whitespace-nowrap">
           <span className="text-purple-300 text-sm font-semibold">📖 Review · no points</span>
           <div className="w-px h-4 bg-purple-700" />
-          <button
-            onClick={() => { handleNewChallenge(); setFeedback('') }}
-            className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-4 py-1.5 rounded-xl text-sm font-bold transition-all cursor-pointer shadow-md"
-          >
-            New Challenge →
-          </button>
+          {savedChallenge ? (
+            <button
+              onClick={() => { handleReturnToChallenge(); setFeedback('') }}
+              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-4 py-1.5 rounded-xl text-sm font-bold transition-all cursor-pointer shadow-md"
+            >
+              ← Back to Challenge
+            </button>
+          ) : (
+            <button
+              onClick={() => { handleNewChallenge(); setFeedback('') }}
+              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-4 py-1.5 rounded-xl text-sm font-bold transition-all cursor-pointer shadow-md"
+            >
+              New Challenge →
+            </button>
+          )}
         </div>
       )}
 
@@ -107,6 +117,7 @@ export default function PracticePage() {
           score={score} streak={streak} totalCompleted={totalCompleted}
           dailyCorrect={dailyCorrect} dailySkipped={dailySkipped}
           onReview={() => {
+            setDailyWords(prev => prev.slice(0, currentIndex + 1))
             setIsReviewing(true); setCurrentIndex(0)
             setInput(''); setFeedback(''); setShowHint(false); setShowExample(false)
           }}
@@ -153,7 +164,7 @@ export default function PracticePage() {
                     score={score} progress={progress} totalCompleted={totalCompleted}
                     topikIIUnlocked={topikIIUnlocked} currentRank={currentRank}
                     streak={streak} currentWord={currentWord}
-                    onReviewDifficult={handleReviewDifficult} isReviewing={isReviewing}
+                    onReviewDifficult={() => handleReviewDifficult(dailyWords, currentIndex, dailyCorrect, dailySkipped)} isReviewing={isReviewing}
                   />
                 </div>
               </div>
@@ -179,7 +190,7 @@ export default function PracticePage() {
                 </div>
               </div>
               <button
-                onClick={handleReviewDifficult}
+                onClick={() => handleReviewDifficult(dailyWords, currentIndex, dailyCorrect, dailySkipped)}
                 className="bg-red-900 hover:bg-red-800 border border-red-700 text-red-300 text-xs px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition-colors"
               >
                 Review ↻

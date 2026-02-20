@@ -35,6 +35,7 @@ export function AppProvider({ children }) {
   const [dailyCorrect, setDailyCorrect] = useState(0)
   const [dailySkipped, setDailySkipped] = useState(0)
   const [isReviewing, setIsReviewing] = useState(false)
+  const [savedChallenge, setSavedChallenge] = useState(null) // snapshot before difficult review
   const [error, setError] = useState(null)
   const wordsGeneratedRef = useRef(false)
   // Refs for use inside timers/callbacks (avoid stale closures)
@@ -268,6 +269,7 @@ export function AppProvider({ children }) {
 
   const handleNewChallenge = () => {
     setIsReviewing(false)
+    setSavedChallenge(null)
     wordsGeneratedRef.current = false
     generateDailyWords() // async fire-and-forget — state updates when words resolve
     setScore(0)
@@ -277,7 +279,7 @@ export function AppProvider({ children }) {
     saveUserStats(userRef.current?.id, totalCompleted, 0, streak, today, 0)
   }
 
-  const handleReviewDifficult = async () => {
+  const handleReviewDifficult = async (currentDailyWords, currentIdx, currentDailyCorrect, currentDailySkipped) => {
     const { allWords } = await getWords()
     const difficult = Object.entries(wordStats)
       .filter(([, s]) => s.attempts > 0 && s.correct / s.attempts < 0.8)
@@ -288,10 +290,28 @@ export function AppProvider({ children }) {
     if (difficult.length === 0) {
       alert('No difficult words to review! Keep practicing! 🎉')
     } else {
+      // Save the current challenge state so the user can return to it
+      setSavedChallenge({
+        dailyWords: currentDailyWords,
+        currentIndex: currentIdx,
+        dailyCorrect: currentDailyCorrect,
+        dailySkipped: currentDailySkipped,
+      })
       setDailyWords(difficult)
       setCurrentIndex(0)
       setIsReviewing(true)
     }
+  }
+
+  const handleReturnToChallenge = () => {
+    if (savedChallenge) {
+      setDailyWords(savedChallenge.dailyWords)
+      setCurrentIndex(savedChallenge.currentIndex)
+      setDailyCorrect(savedChallenge.dailyCorrect)
+      setDailySkipped(savedChallenge.dailySkipped)
+      setSavedChallenge(null)
+    }
+    setIsReviewing(false)
   }
 
   const getWordDifficulty = (word) => {
@@ -334,7 +354,8 @@ export function AppProvider({ children }) {
       error, setError,
       wordsGeneratedRef, generateDailyWords,
       speakKorean, handleSignOut,
-      handleNewChallenge, handleReviewDifficult,
+      handleNewChallenge, handleReviewDifficult, handleReturnToChallenge,
+      savedChallenge,
       getWordDifficulty, getCurrentRank, getHardWords, getAccuracyData,
     }}>
       {children}

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { Sparkles, Trophy, Flame, LogOut, Settings as SettingsIcon, BookOpen, BookMarked, Languages, X, Lock, Check } from 'lucide-react'
+import { Sparkles, Trophy, Flame, LogOut, Settings as SettingsIcon, BookOpen, BookMarked, Languages, Library, X, Lock, Check } from 'lucide-react'
 import { ranks } from '@/lib/ranks'
 import { useApp } from '@/app/providers'
 import { APP_NAME, RANK_META, RANK_COLOR_MAP } from '@/lib/constants'
@@ -17,11 +17,11 @@ export default function NavBar() {
   const englishName = RANK_META[currentRank?.name]?.en || currentRank?.name || ''
   const rankColor = RANK_COLOR_MAP[currentRank?.color] || RANK_COLOR_MAP.gray
 
-  const isActive = (path) => pathname === path || (path === '/practice' && pathname === '/')
+  const isActive = (path) => pathname === path || (path === '/words' && pathname === '/')
   const nav = (path) => router.push(path)
 
   const tabClass = (path) =>
-    `px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer whitespace-nowrap ${
+    `flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer whitespace-nowrap ${
       isActive(path) ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'
     }`
 
@@ -61,15 +61,17 @@ export default function NavBar() {
             </div>
           </div>
           <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
-            <button onClick={() => nav('/practice')} className={tabClass('/practice')}>Practice</button>
+            <button onClick={() => nav('/words')} className={tabClass('/words')}>
+              <Library size={14} />Words
+            </button>
             <button onClick={() => nav('/grammar')} className={tabClass('/grammar')}>
-              <BookOpen className="inline mr-1" size={14} />Grammar
+              <BookOpen size={14} />Grammar
             </button>
             <button onClick={() => nav('/dictionary')} className={tabClass('/dictionary')}>
-              <BookMarked className="inline mr-1" size={14} />Dictionary
+              <BookMarked size={14} />Dictionary
             </button>
             <button onClick={() => nav('/alphabet')} className={tabClass('/alphabet')}>
-              <Languages className="inline mr-1" size={14} />Hangul
+              <Languages size={14} />Hangul
             </button>
           </div>
         </div>
@@ -85,17 +87,17 @@ export default function NavBar() {
             </div>
 
             <div className="flex gap-2">
-              <button onClick={() => nav('/practice')} className={`px-4 py-2 rounded-lg ${isActive('/practice') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
-                Practice
+              <button onClick={() => nav('/words')} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg ${isActive('/words') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
+                <Library size={18} />Words
               </button>
-              <button onClick={() => nav('/grammar')} className={`px-4 py-2 rounded-lg ${isActive('/grammar') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
-                <BookOpen className="inline mr-1" size={18} />Grammar
+              <button onClick={() => nav('/grammar')} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg ${isActive('/grammar') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
+                <BookOpen size={18} />Grammar
               </button>
-              <button onClick={() => nav('/dictionary')} className={`px-4 py-2 rounded-lg ${isActive('/dictionary') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
-                <BookMarked className="inline mr-1" size={18} />Dictionary
+              <button onClick={() => nav('/dictionary')} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg ${isActive('/dictionary') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
+                <BookMarked size={18} />Dictionary
               </button>
-              <button onClick={() => nav('/alphabet')} className={`px-4 py-2 rounded-lg ${isActive('/alphabet') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
-                <Languages className="inline mr-1" size={18} />Hangul
+              <button onClick={() => nav('/alphabet')} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg ${isActive('/alphabet') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
+                <Languages size={18} />Hangul
               </button>
             </div>
 

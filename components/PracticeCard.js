@@ -10,7 +10,9 @@ export default function PracticeCard({
   handleSubmit, handleNextWord, currentWordDifficulty,
   reverseMode, onSpeak,
 }) {
-  const [krMode, setKrMode] = useState(false)
+  const [krMode, setKrMode] = useState(() =>
+    typeof window !== 'undefined' && localStorage.getItem('krMode') === 'true'
+  )
   const composer = useRef(EMPTY_STATE)
   const internalUpdate = useRef(false)
 
@@ -148,7 +150,7 @@ export default function PracticeCard({
             {!reverseMode && (
               <button
                 type="button"
-                onClick={() => setKrMode(m => !m)}
+                onClick={() => setKrMode(m => { localStorage.setItem('krMode', String(!m)); return !m })}
                 title={krMode ? 'Switch to direct input' : 'Enable Korean keyboard (QWERTY → 한글)'}
                 className={`flex-shrink-0 flex items-center justify-center px-3.5 border-l text-sm font-bold transition-colors cursor-pointer ${
                   krMode

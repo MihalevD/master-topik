@@ -21,7 +21,7 @@ export default function SettingsPage() {
       setReviewMode={setReviewMode}
       reverseMode={reverseMode}
       setReverseMode={setReverseMode}
-      setCurrentView={(view) => router.push(view === 'practice' ? '/practice' : `/${view}`)}
+      setCurrentView={(view) => router.push(view === 'practice' ? '/words' : `/${view}`)}
       wordsGeneratedRef={wordsGeneratedRef}
       generateDailyWords={generateDailyWords}
     />

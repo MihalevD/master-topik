@@ -130,7 +130,11 @@ export default function PracticeCard({
       {/* ── LOWER ZONE: form + hints ── */}
       <div className="mt-5 md:mt-6">
         <form onSubmit={handleSubmit} className="mb-3">
-          <div className="relative mb-3">
+          <div className={`flex items-stretch mb-3 rounded-xl border-2 overflow-hidden transition-all bg-gray-900/60 ${
+            feedback === 'wrong'
+              ? 'border-red-500/70 bg-red-900/20 animate-shake'
+              : 'border-gray-700 focus-within:border-purple-500 focus-within:bg-gray-900/80'
+          }`}>
             <input
               type="text"
               value={input}
@@ -138,11 +142,7 @@ export default function PracticeCard({
               onKeyDown={handleKeyDown}
               onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
               placeholder={inputPlaceholder}
-              className={`w-full text-xl md:text-3xl 3xl:text-5xl text-center p-3 md:p-3.5 rounded-xl transition-all bg-gray-900/60 text-white placeholder-gray-600 focus:outline-none border-2 ${
-                feedback === 'wrong'
-                  ? 'border-red-500/70 bg-red-900/20 animate-shake'
-                  : 'border-gray-700 focus:border-purple-500 focus:bg-gray-900/80'
-              }`}
+              className="flex-1 min-w-0 text-xl md:text-3xl 3xl:text-5xl text-center p-3 md:p-3.5 bg-transparent text-white placeholder-gray-600 focus:outline-none"
               autoFocus
             />
             {!reverseMode && (
@@ -150,10 +150,10 @@ export default function PracticeCard({
                 type="button"
                 onClick={() => setKrMode(m => !m)}
                 title={krMode ? 'Switch to direct input' : 'Enable Korean keyboard (QWERTY → 한글)'}
-                className={`absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                className={`flex-shrink-0 flex items-center justify-center px-3.5 border-l text-sm font-bold transition-colors cursor-pointer ${
                   krMode
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-gray-700 text-gray-400 hover:text-white'
+                    ? 'bg-purple-600 text-white border-purple-700'
+                    : 'bg-gray-800/60 text-gray-400 hover:text-white border-gray-700/60'
                 }`}
               >
                 {krMode ? '한' : 'A'}

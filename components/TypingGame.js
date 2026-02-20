@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { ArrowLeft, RotateCcw, Trophy, Zap, Star, Keyboard } from 'lucide-react'
+import { ArrowLeft, RotateCcw, Zap, Star, Keyboard } from 'lucide-react'
 import { KEY_MAP as QWERTY_MAP, EMPTY_STATE, getFullText, addJamo, backspace } from '@/lib/hangulComposer'
 
 // Korean 2-beolsik keyboard map (jamo → QWERTY key, used for key hints)
@@ -152,7 +152,6 @@ export default function TypingGame({ setCurrentView }) {
   const startGame = useCallback(() => {
     if (!selectedMode) return
     const modeObj = MODES.find(m => m.id === selectedMode)
-    const pool = shuffle([...modeObj.chars])
     // ensure enough unique chars (loop if needed)
     const selected = []
     while (selected.length < rounds) {
@@ -210,17 +209,38 @@ export default function TypingGame({ setCurrentView }) {
     if (!krMode || advancingRef.current) return
     if (e.ctrlKey || e.metaKey || e.altKey) return
 
+    // Standalone jamo targets (vowel/consonant modes) are below the syllable block
+    const isJamoTarget = currentChar && currentChar.charCodeAt(0) < 0xAC00
+
     if (e.key === 'Backspace') {
       e.preventDefault()
-      composer.current = backspace(composer.current)
-      internalUpdate.current = true
-      setInput(getFullText(composer.current))
+      if (isJamoTarget) {
+        internalUpdate.current = true
+        setInput('')
+      } else {
+        composer.current = backspace(composer.current)
+        internalUpdate.current = true
+        setInput(getFullText(composer.current))
+      }
       return
     }
 
     const jamo = QWERTY_MAP[e.shiftKey ? e.key.toUpperCase() : e.key]
     if (!jamo) return
     e.preventDefault()
+
+    if (isJamoTarget) {
+      // Bypass composer: display raw jamo and match directly (no auto-ㅇ insertion)
+      internalUpdate.current = true
+      setInput(jamo)
+      if (jamo === currentChar) {
+        const elapsed = Date.now() - charStartTime
+        advance(elapsed)
+      }
+      return
+    }
+
+    // Syllable target: full IME composition
     composer.current = addJamo(composer.current, jamo)
     internalUpdate.current = true
     const composed = getFullText(composer.current)
@@ -409,7 +429,7 @@ export default function TypingGame({ setCurrentView }) {
 
           {/* Key hint */}
           <div className="flex items-center gap-2">
-            {getKeyHint(currentChar).split(' + ').map((key, i, arr) => (
+            {keyHint.split(' + ').map((key, i, arr) => (
               <span key={i} className="flex items-center gap-2">
                 <kbd className="px-3 py-1.5 bg-gray-800 border border-gray-600 rounded-lg text-gray-300 text-sm font-mono font-bold shadow-inner">
                   {key}
@@ -433,25 +453,25 @@ export default function TypingGame({ setCurrentView }) {
           />
 
           {/* Visible input display + KR mode toggle */}
-          <div className="flex items-center gap-2">
-            <div
-              onClick={() => inputRef.current?.focus()}
-              className={`w-40 h-14 flex items-center justify-center rounded-xl border-2 cursor-text transition-all ${
-                flash === 'correct'
-                  ? `${mode.border} bg-gray-800`
-                  : 'border-gray-700 bg-gray-800 hover:border-gray-600'
-              }`}
-            >
+          <div
+            onClick={() => inputRef.current?.focus()}
+            className={`flex items-stretch rounded-xl border-2 overflow-hidden transition-all cursor-text ${
+              flash === 'correct'
+                ? `${mode.border} bg-gray-800`
+                : 'border-gray-700 bg-gray-800 hover:border-gray-600'
+            }`}
+          >
+            <div className="flex-1 h-14 flex items-center justify-center px-4">
               <span className={`text-2xl font-bold ${flash === 'correct' ? mode.accent : 'text-white'}`}>
                 {flash === 'correct' ? '✓' : (input || <span className="text-gray-600">type here</span>)}
               </span>
             </div>
             <button
               type="button"
-              onClick={() => { setKrMode(m => !m); inputRef.current?.focus() }}
+              onClick={(e) => { e.stopPropagation(); setKrMode(m => !m); inputRef.current?.focus() }}
               title={krMode ? 'Switch to native Korean keyboard' : 'Enable QWERTY → Korean input'}
-              className={`px-2 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                krMode ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-400 hover:text-white'
+              className={`flex-shrink-0 flex items-center justify-center px-3.5 border-l text-sm font-bold transition-colors cursor-pointer ${
+                krMode ? 'bg-purple-600 text-white border-purple-700' : 'bg-gray-800 text-gray-400 hover:text-white border-gray-700/60'
               }`}
             >
               {krMode ? '한' : 'A'}

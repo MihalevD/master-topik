@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Sparkles, Trophy, Flame, LogOut, Settings as SettingsIcon, Keyboard, BookOpen, BookMarked, Languages, X, Lock, Check } from 'lucide-react'
+import { Sparkles, Trophy, Flame, LogOut, Settings as SettingsIcon, BookOpen, BookMarked, Languages, X, Lock, Check } from 'lucide-react'
 import { ranks } from '@/lib/words'
 
 const rankMeta = {
@@ -107,10 +107,6 @@ export default function NavBar({ currentView, setCurrentView, currentRank, strea
             <div className="flex gap-2">
               <button onClick={() => setCurrentView('practice')} className={`px-4 py-2 rounded-lg ${currentView === 'practice' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
                 Practice
-              </button>
-              <button onClick={() => setCurrentView('typing')} className={`px-4 py-2 rounded-lg ${currentView === 'typing' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
-                <Keyboard className="inline mr-1" size={18} />
-                Type
               </button>
               <button onClick={() => setCurrentView('learn')} className={`px-4 py-2 rounded-lg ${currentView === 'learn' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
                 <BookOpen className="inline mr-1" size={18} />

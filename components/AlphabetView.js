@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Volume2 } from 'lucide-react'
+import { Volume2, Keyboard } from 'lucide-react'
+import TypingGame from './TypingGame'
 
 function speak(text) {
   if (typeof window === 'undefined' || !window.speechSynthesis) return
@@ -84,16 +85,29 @@ function CharCard({ item, onPlay }) {
   )
 }
 
-export default function AlphabetView() {
+export default function AlphabetView({ setCurrentView }) {
   const [activeTab, setActiveTab] = useState('consonants')
 
-  const tab = (id, label) => (
+  // Render TypingGame as a full subtab — back button resets to consonants
+  if (activeTab === 'typing') {
+    return (
+      <TypingGame
+        setCurrentView={(view) => {
+          if (view === 'practice') setActiveTab('consonants')
+          else setCurrentView?.(view)
+        }}
+      />
+    )
+  }
+
+  const tab = (id, label, icon) => (
     <button
       onClick={() => setActiveTab(id)}
-      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+      className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
         activeTab === id ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-gray-200'
       }`}
     >
+      {icon}
       {label}
     </button>
   )
@@ -107,6 +121,7 @@ export default function AlphabetView() {
             {tab('consonants', 'Consonants')}
             {tab('vowels', 'Vowels')}
             {tab('syllables', 'How it Works')}
+            {tab('typing', 'Typing Practice', <Keyboard size={14} />)}
           </div>
         </div>
       </div>

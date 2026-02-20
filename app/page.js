@@ -12,7 +12,6 @@ import CorrectModal from '@/components/CorrectModal'
 import PracticeCard from '@/components/PracticeCard'
 import Sidebar from '@/components/Sidebar'
 import ChallengeComplete from '@/components/ChallengeComplete'
-import TypingGame from '@/components/TypingGame'
 import LearnView from '@/components/LearnView'
 import GrammarGame from '@/components/GrammarGame'
 import ProfileView from '@/components/ProfileView'
@@ -425,10 +424,6 @@ export default function Home() {
   const currentRank = getCurrentRank()
   const topikIIUnlocked = totalCompleted >= 500
 
-  if (currentView === 'typing') {
-    return <TypingGame setCurrentView={setCurrentView} />
-  }
-
   // --- Practice view vars (safe defaults when no words loaded) ---
   const currentWord = dailyWords.length > 0 ? dailyWords[currentIndex] : null
   const progress = (dailyCorrect / dailyChallenge) * 100
@@ -484,7 +479,7 @@ export default function Home() {
         <DictionaryView wordStats={wordStats} allWords={allWords} />
       )}
       {currentView === 'alphabet' && (
-        <AlphabetView />
+        <AlphabetView setCurrentView={setCurrentView} />
       )}
       {currentView === 'stats' && (
         <StatsView totalCompleted={totalCompleted} streak={streak} hardWords={getHardWords()} accuracy={getAccuracyData()} setCurrentView={setCurrentView} />

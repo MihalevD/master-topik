@@ -93,30 +93,27 @@ function CharCard({ item, onPlay }) {
   )
 }
 
-export default function AlphabetView({ setCurrentView }) {
+export default function AlphabetView() {
   const [activeTab, setActiveTab] = useState('consonants')
 
-  // Render TypingGame as a full subtab — back button resets to consonants
   if (activeTab === 'typing') {
     return (
       <TypingGame
         setCurrentView={(view) => {
           if (view === 'practice') setActiveTab('consonants')
-          else setCurrentView?.(view)
         }}
       />
     )
   }
 
-  const tab = (id, label, icon) => (
+  const tab = (id, label, icon, mobileHidden = false) => (
     <button
       onClick={() => setActiveTab(id)}
-      className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+      className={`${mobileHidden ? 'hidden md:inline-flex' : 'inline-flex'} items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
         activeTab === id ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-gray-200'
       }`}
     >
-      {icon}
-      {label}
+      {icon}{label}
     </button>
   )
 
@@ -129,7 +126,7 @@ export default function AlphabetView({ setCurrentView }) {
             {tab('consonants', 'Consonants')}
             {tab('vowels', 'Vowels')}
             {tab('syllables', 'How it Works')}
-            {tab('typing', 'Typing Practice', <Keyboard size={14} />)}
+            {tab('typing', 'Typing Practice', <Keyboard size={14} />, true)}
           </div>
         </div>
       </div>

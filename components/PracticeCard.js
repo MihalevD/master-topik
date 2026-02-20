@@ -24,6 +24,7 @@ export default function PracticeCard({
     internalUpdate.current = false
   }, [input])
 
+
   function handleKeyDown(e) {
     if (!krMode || reverseMode) return
     if (e.ctrlKey || e.metaKey || e.altKey) return

@@ -36,16 +36,19 @@ export function AppProvider({ children }) {
   const [dailySkipped, setDailySkipped] = useState(0)
   const [isReviewing, setIsReviewing] = useState(false)
   const [savedChallenge, setSavedChallenge] = useState(null) // snapshot before difficult review
+  const [totalScore, setTotalScore] = useState(0)
   const [error, setError] = useState(null)
   const wordsGeneratedRef = useRef(false)
   // Refs for use inside timers/callbacks (avoid stale closures)
   const userRef = useRef(null)
+  const totalScoreRef = useRef(0)
   const pendingSavesRef = useRef({})   // word progress batch queue
   const saveTimerRef = useRef(null)
   const pendingStatsRef = useRef(null) // user stats debounce queue
   const statsTimerRef = useRef(null)
 
   useEffect(() => { userRef.current = user }, [user])
+  useEffect(() => { totalScoreRef.current = totalScore }, [totalScore])
 
   const setDailyChallenge = (val) => {
     if (typeof window !== 'undefined') localStorage.setItem('dailyChallenge', val)
@@ -118,6 +121,9 @@ export function AppProvider({ children }) {
         setTotalCompleted(stats.total_completed || 0)
         setScore(stats.current_score || 0)
         setStreak(stats.streak || 0)
+        const loadedTotalScore = stats.total_score || 0
+        setTotalScore(loadedTotalScore)
+        totalScoreRef.current = loadedTotalScore
         const today = new Date().toISOString().split('T')[0]
         const lastLogin = stats.last_login
         if (lastLogin !== today) {
@@ -127,7 +133,7 @@ export function AppProvider({ children }) {
           setStreak(newStreak)
           setDailyCorrect(0)
           setScore(0)
-          await saveUserStats(userId, stats.total_completed, 0, newStreak, today, 0)
+          await saveUserStats(userId, stats.total_completed, 0, newStreak, today, 0, loadedTotalScore)
         } else {
           setDailyCorrect(stats.daily_correct || 0)
         }
@@ -178,7 +184,7 @@ export function AppProvider({ children }) {
       setLoading(false)
     }
     checkUser()
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return
       const wasLoggedOut = !user && session?.user
       setUser(session?.user || null)
@@ -235,7 +241,7 @@ export function AppProvider({ children }) {
       const { newTotal, newScore, newStreak, newDailyCorrect } = pendingStatsRef.current
       pendingStatsRef.current = null
       const today = new Date().toISOString().split('T')[0]
-      saveUserStats(userId, newTotal, newScore, newStreak, today, newDailyCorrect).catch(() =>
+      saveUserStats(userId, newTotal, newScore, newStreak, today, newDailyCorrect, totalScoreRef.current).catch(() =>
         setError('Failed to save stats. Please check your connection.')
       )
     }, 2000)
@@ -260,11 +266,20 @@ export function AppProvider({ children }) {
       if (userId) {
         const { newTotal, newScore, newStreak, newDailyCorrect } = pendingStatsRef.current
         const today = new Date().toISOString().split('T')[0]
-        await saveUserStats(userId, newTotal, newScore, newStreak, today, newDailyCorrect)
+        await saveUserStats(userId, newTotal, newScore, newStreak, today, newDailyCorrect, totalScoreRef.current)
       }
     }
     await supabase.auth.signOut()
     setUser(null)
+  }
+
+  // Called the moment a challenge is marked complete — adds daily score to lifetime total
+  const completeChallengeScore = (dailyScore) => {
+    if (dailyScore <= 0) return
+    const newTotalScore = totalScoreRef.current + dailyScore
+    setTotalScore(newTotalScore)
+    totalScoreRef.current = newTotalScore
+    // totalScoreRef is now updated; the pending recordScore debounce timer will pick it up
   }
 
   const handleNewChallenge = () => {
@@ -276,7 +291,7 @@ export function AppProvider({ children }) {
     setDailyCorrect(0)
     setDailySkipped(0)
     const today = new Date().toISOString().split('T')[0]
-    saveUserStats(userRef.current?.id, totalCompleted, 0, streak, today, 0)
+    saveUserStats(userRef.current?.id, totalCompleted, 0, streak, today, 0, totalScoreRef.current)
   }
 
   const handleReviewDifficult = async (currentDailyWords, currentIdx, currentDailyCorrect, currentDailySkipped) => {
@@ -296,6 +311,7 @@ export function AppProvider({ children }) {
         currentIndex: currentIdx,
         dailyCorrect: currentDailyCorrect,
         dailySkipped: currentDailySkipped,
+        fromReview: isReviewing,
       })
       setDailyWords(difficult)
       setCurrentIndex(0)
@@ -309,9 +325,11 @@ export function AppProvider({ children }) {
       setCurrentIndex(savedChallenge.currentIndex)
       setDailyCorrect(savedChallenge.dailyCorrect)
       setDailySkipped(savedChallenge.dailySkipped)
+      setIsReviewing(savedChallenge.fromReview)
       setSavedChallenge(null)
+    } else {
+      setIsReviewing(false)
     }
-    setIsReviewing(false)
   }
 
   const getWordDifficulty = (word) => {
@@ -342,7 +360,7 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       user, loading,
       dailyWords, setDailyWords, currentIndex, setCurrentIndex,
-      score, setScore, totalCompleted, setTotalCompleted,
+      score, setScore, totalScore, totalCompleted, setTotalCompleted,
       dailyChallenge, setDailyChallenge,
       streak, setStreak,
       wordStats, updateWordStats, recordScore,
@@ -354,7 +372,7 @@ export function AppProvider({ children }) {
       error, setError,
       wordsGeneratedRef, generateDailyWords,
       speakKorean, handleSignOut,
-      handleNewChallenge, handleReviewDifficult, handleReturnToChallenge,
+      handleNewChallenge, handleReviewDifficult, handleReturnToChallenge, completeChallengeScore,
       savedChallenge,
       getWordDifficulty, getCurrentRank, getHardWords, getAccuracyData,
     }}>

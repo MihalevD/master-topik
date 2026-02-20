@@ -6,7 +6,7 @@ import { TOPIKII_UNLOCK_THRESHOLD, REVIEW_DIFFICULT_COUNT } from '@/lib/constant
 
 export default function Sidebar({
   dailyCorrect, dailyChallenge, score, progress,
-  totalCompleted, topikIIUnlocked, currentRank, streak,
+  totalCompleted, topikIIUnlocked, currentRank, streak, totalScore,
   currentWord, onReviewDifficult, isReviewing
 }) {
   const [showKoreanExample, setShowKoreanExample] = useState(false)
@@ -26,7 +26,7 @@ export default function Sidebar({
             </p>
           </div>
           <div className="bg-gray-900/50 rounded-xl px-3 py-2.5 border border-gray-700/50">
-            <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">Score</p>
+            <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">Daily Score</p>
             <p className="text-xl font-bold text-pink-400 leading-none flex items-center gap-1">
               <Zap size={14} className="text-pink-500" />
               {score}
@@ -100,8 +100,8 @@ export default function Sidebar({
         <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-3">Stats</p>
         <div className="grid grid-cols-3 gap-2">
           <div className="bg-gray-900/50 rounded-xl border border-gray-700/50 flex flex-col items-center justify-between py-2.5 px-1 min-h-[52px]">
-            <p className="text-lg font-bold text-purple-400 leading-none">{totalCompleted}</p>
-            <p className="text-[10px] text-gray-500 leading-none">Total</p>
+            <p className="text-lg font-bold text-pink-400 leading-none flex items-center gap-0.5"><Zap size={12} className="text-pink-500" />{(totalScore || 0).toLocaleString()}</p>
+            <p className="text-[10px] text-gray-500 leading-none">Score</p>
           </div>
           <div className="bg-gray-900/50 rounded-xl border border-gray-700/50 flex flex-col items-center justify-between py-2.5 px-1 min-h-[52px]">
             <p className="text-xs font-bold text-pink-400 leading-none">{currentRank.level}</p>

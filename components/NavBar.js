@@ -5,13 +5,25 @@ import { useRouter, usePathname } from 'next/navigation'
 import { Sparkles, Trophy, Flame, LogOut, Settings as SettingsIcon, BookOpen, BookMarked, Languages, Library, X, Lock, Check } from 'lucide-react'
 import { ranks } from '@/lib/ranks'
 import { useApp } from '@/app/providers'
-import { APP_NAME, RANK_META, RANK_COLOR_MAP } from '@/lib/constants'
+import { APP_NAME, RANK_META, RANK_COLOR_MAP, getAchievements } from '@/lib/constants'
+import { RANK_ACHIEVEMENTS, MILESTONE_PHRASES, MILESTONE_COLORS } from '@/lib/rankAchievements'
+import dynamic from 'next/dynamic'
+
+const RankAchievementModal = dynamic(() => import('@/components/RankAchievementModal'))
+
+function loadSeenIds() {
+  if (typeof window === 'undefined') return new Set()
+  const raw = localStorage.getItem('seenAchievements') || ''
+  return new Set(raw ? raw.split(',') : [])
+}
 
 export default function NavBar() {
   const router = useRouter()
   const pathname = usePathname()
-  const { getCurrentRank, streak, handleSignOut } = useApp()
+  const { getCurrentRank, streak, totalCompleted, handleSignOut, speakKorean } = useApp()
   const [showRankPopup, setShowRankPopup] = useState(false)
+  const [showAchievementModal, setShowAchievementModal] = useState(false)
+  const [seenIds, setSeenIds] = useState(loadSeenIds)
 
   const currentRank = getCurrentRank()
   const englishName = RANK_META[currentRank?.name]?.en || currentRank?.name || ''
@@ -24,6 +36,48 @@ export default function NavBar() {
     `flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer whitespace-nowrap ${
       isActive(path) ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'
     }`
+
+  // Build pending achievements queue: milestones first, then rank-up
+  const milestoneItems = getAchievements(totalCompleted, streak)
+    .filter(a => a.unlocked && !seenIds.has(a.id) && MILESTONE_PHRASES[a.id])
+    .map(a => ({
+      id: a.id,
+      emoji: a.icon,
+      title: a.name,
+      subtitle: a.desc,
+      colorKey: MILESTONE_COLORS[a.id] || 'purple',
+      ...MILESTONE_PHRASES[a.id],
+    }))
+
+  const rankId = `rank_${currentRank?.name}`
+  const rankItem = currentRank && RANK_ACHIEVEMENTS[currentRank.name] && !seenIds.has(rankId)
+    ? {
+        id: rankId,
+        emoji: RANK_META[currentRank.name]?.emoji,
+        title: RANK_META[currentRank.name]?.en || currentRank.name,
+        subtitle: `${currentRank.name} · ${currentRank.level}`,
+        colorKey: currentRank.color,
+        ...RANK_ACHIEVEMENTS[currentRank.name],
+      }
+    : null
+
+  const pendingQueue = [...milestoneItems, ...(rankItem ? [rankItem] : [])]
+  const hasNewAchievement = pendingQueue.length > 0
+  const currentAchievement = pendingQueue[0] || null
+
+  const markSeen = (id) => {
+    const next = new Set(seenIds)
+    next.add(id)
+    setSeenIds(next)
+    localStorage.setItem('seenAchievements', [...next].join(','))
+  }
+
+  const openAchievement = () => setShowAchievementModal(true)
+
+  const closeAchievement = () => {
+    if (currentAchievement) markSeen(currentAchievement.id)
+    setShowAchievementModal(false)
+  }
 
   return (
     <>
@@ -45,9 +99,15 @@ export default function NavBar() {
                 <Trophy className={rankColor.text} size={14} />
                 <span className={`font-bold text-xs ${rankColor.text}`}>{englishName}</span>
               </button>
-              <button onClick={() => nav('/profile')} className="flex items-center gap-1 px-2 py-1 rounded-full bg-gray-800 border border-orange-500 cursor-pointer hover:opacity-80 transition-opacity">
+              <button
+                onClick={() => hasNewAchievement ? openAchievement() : nav('/profile')}
+                className="relative flex items-center gap-1 px-2 py-1 rounded-full bg-gray-800 border border-orange-500 cursor-pointer hover:opacity-80 transition-opacity"
+              >
                 <Flame className="text-orange-500" size={14} />
                 <span className="font-bold text-white text-xs">{streak}</span>
+                {hasNewAchievement && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
+                )}
               </button>
               <button
                 onClick={() => nav('/settings')}
@@ -109,9 +169,15 @@ export default function NavBar() {
                 <Trophy className={rankColor.text} size={16} />
                 <span className={`font-bold text-sm ${rankColor.text}`}>{englishName}</span>
               </button>
-              <button onClick={() => nav('/profile')} className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-800 border border-orange-500 cursor-pointer hover:opacity-80 transition-opacity">
+              <button
+                onClick={() => hasNewAchievement ? openAchievement() : nav('/profile')}
+                className="relative flex items-center gap-2 px-3 py-1 rounded-full bg-gray-800 border border-orange-500 cursor-pointer hover:opacity-80 transition-opacity"
+              >
                 <Flame className="text-orange-500" size={16} />
                 <span className="font-bold text-white text-sm">{streak}</span>
+                {hasNewAchievement && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
+                )}
               </button>
               <button onClick={() => nav('/settings')} className={`p-2 rounded-lg ${isActive('/settings') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
                 <SettingsIcon size={18} />
@@ -157,7 +223,7 @@ export default function NavBar() {
                 const currentIdx = ranks.findIndex(x => x.name === currentRank?.name)
                 const isCurrent = i === currentIdx
                 const isPast    = i < currentIdx
-                const c = RANK_COLOR_MAP[r.color] || colorMap.gray
+                const c = RANK_COLOR_MAP[r.color] || RANK_COLOR_MAP.gray
                 const meta = RANK_META[r.name] || { en: r.name, emoji: '⭐' }
                 const xpRange = r.max === Infinity ? `${r.min.toLocaleString()}+` : `${r.min.toLocaleString()} – ${r.max.toLocaleString()}`
                 return (
@@ -195,6 +261,15 @@ export default function NavBar() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Achievement modal */}
+      {showAchievementModal && currentAchievement && (
+        <RankAchievementModal
+          info={currentAchievement}
+          onClose={closeAchievement}
+          onSpeak={speakKorean}
+        />
       )}
     </>
   )

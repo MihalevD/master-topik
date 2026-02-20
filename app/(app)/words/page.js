@@ -19,10 +19,9 @@ export default function PracticePage() {
     dailyChallenge, streak, wordStats, updateWordStats,
     reviewMode, reverseMode, dailyCorrect, setDailyCorrect,
     dailySkipped, setDailySkipped, isReviewing, setIsReviewing,
-    setError, wordsGeneratedRef, generateDailyWords,
     speakKorean, handleNewChallenge, handleReviewDifficult, handleReturnToChallenge,
-    savedChallenge,
-    getWordDifficulty, getCurrentRank, recordScore,
+    savedChallenge, completeChallengeScore,
+    getWordDifficulty, getCurrentRank, recordScore, totalScore,
   } = useApp()
 
   const [input, setInput] = useState('')
@@ -41,6 +40,7 @@ export default function PracticePage() {
     if (isSkip && !isReviewing && !reviewMode) setDailySkipped(prev => prev + 1)
     const looping = isReviewing || reviewMode
     if (!looping && dailyCorrect >= dailyChallenge) {
+      completeChallengeScore(score)
       setFeedback('complete')
     } else if (currentIndex < dailyWords.length - 1) {
       setCurrentIndex(currentIndex + 1)
@@ -50,6 +50,7 @@ export default function PracticePage() {
       setCurrentIndex(0)
       setInput(''); setShowHint(false); setShowExample(false); setFeedback('')
     } else {
+      completeChallengeScore(score)
       setFeedback('complete')
     }
   }
@@ -66,13 +67,14 @@ export default function PracticePage() {
     } else {
       isCorrect = normalized === currentWord.korean.toLowerCase().replace(/\s+/g, '')
     }
+    const isNewWord = !wordStats[currentWord.korean] || wordStats[currentWord.korean].attempts === 0
     await updateWordStats(currentWord, isCorrect, showHint, showExample)
     if (isCorrect) {
       setFeedback('correct')
       if (!isReviewing && !reviewMode) {
         const pts = showHint ? POINTS.HINT : showExample ? POINTS.EXAMPLE : POINTS.BASE
         const newScore = score + pts
-        const newTotal = totalCompleted + 1
+        const newTotal = isNewWord ? totalCompleted + 1 : totalCompleted
         const newDailyCorrect = dailyCorrect + 1
         setScore(newScore)
         setTotalCompleted(newTotal)
@@ -99,7 +101,7 @@ export default function PracticePage() {
               onClick={() => { handleReturnToChallenge(); setFeedback('') }}
               className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-4 py-1.5 rounded-xl text-sm font-bold transition-all cursor-pointer shadow-md"
             >
-              ← Back to Challenge
+              {savedChallenge.fromReview ? '← Back to Review' : '← Back to Challenge'}
             </button>
           ) : (
             <button
@@ -163,7 +165,7 @@ export default function PracticePage() {
                     dailyCorrect={dailyCorrect} dailyChallenge={dailyChallenge}
                     score={score} progress={progress} totalCompleted={totalCompleted}
                     topikIIUnlocked={topikIIUnlocked} currentRank={currentRank}
-                    streak={streak} currentWord={currentWord}
+                    streak={streak} totalScore={totalScore} currentWord={currentWord}
                     onReviewDifficult={() => handleReviewDifficult(dailyWords, currentIndex, dailyCorrect, dailySkipped)} isReviewing={isReviewing}
                   />
                 </div>

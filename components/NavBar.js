@@ -62,8 +62,8 @@ export default function NavBar() {
           </div>
           <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
             <button onClick={() => nav('/practice')} className={tabClass('/practice')}>Practice</button>
-            <button onClick={() => nav('/learn')} className={tabClass('/learn')}>
-              <BookOpen className="inline mr-1" size={14} />Learn
+            <button onClick={() => nav('/grammar')} className={tabClass('/grammar')}>
+              <BookOpen className="inline mr-1" size={14} />Grammar
             </button>
             <button onClick={() => nav('/dictionary')} className={tabClass('/dictionary')}>
               <BookMarked className="inline mr-1" size={14} />Dictionary
@@ -88,8 +88,8 @@ export default function NavBar() {
               <button onClick={() => nav('/practice')} className={`px-4 py-2 rounded-lg ${isActive('/practice') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
                 Practice
               </button>
-              <button onClick={() => nav('/learn')} className={`px-4 py-2 rounded-lg ${isActive('/learn') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
-                <BookOpen className="inline mr-1" size={18} />Learn
+              <button onClick={() => nav('/grammar')} className={`px-4 py-2 rounded-lg ${isActive('/grammar') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
+                <BookOpen className="inline mr-1" size={18} />Grammar
               </button>
               <button onClick={() => nav('/dictionary')} className={`px-4 py-2 rounded-lg ${isActive('/dictionary') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
                 <BookMarked className="inline mr-1" size={18} />Dictionary

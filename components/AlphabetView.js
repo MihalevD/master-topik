@@ -164,7 +164,7 @@ export default function AlphabetView({ setCurrentView }) {
                 <p className="text-gray-300 text-sm font-semibold mb-1">💡 Key tips</p>
                 <ul className="text-gray-400 text-xs space-y-1">
                   <li>• <span className="text-white">ㄱ ㄷ ㅂ ㅈ</span> sound softer at the start of a word, harder at the end</li>
-                  <li>• <span className="text-white">ㄹ</span> sounds like a flicked R — similar to the D in "ladder"</li>
+                  <li>• <span className="text-white">ㄹ</span> sounds like a flicked R — similar to the D in &quot;ladder&quot;</li>
                   <li>• <span className="text-white">ㅇ</span> is completely silent when it starts a syllable</li>
                 </ul>
               </div>
@@ -243,7 +243,7 @@ export default function AlphabetView({ setCurrentView }) {
               </div>
 
               <div className="bg-purple-500/10 border border-purple-500/25 rounded-xl p-4">
-                <p className="text-purple-300 text-sm font-semibold mb-1">✨ You're ready to practice!</p>
+                <p className="text-purple-300 text-sm font-semibold mb-1">✨ You&apos;re ready to practice!</p>
                 <p className="text-gray-400 text-xs leading-relaxed">
                   Korean has only 24 letters — far fewer than many alphabets. With a bit of practice, most learners can read Hangul within a day.
                 </p>

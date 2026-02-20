@@ -36,6 +36,14 @@ export function AppProvider({ children }) {
   const [isReviewing, setIsReviewing] = useState(false)
   const [error, setError] = useState(null)
   const wordsGeneratedRef = useRef(false)
+  // Refs for use inside timers/callbacks (avoid stale closures)
+  const userRef = useRef(null)
+  const pendingSavesRef = useRef({})   // word progress batch queue
+  const saveTimerRef = useRef(null)
+  const pendingStatsRef = useRef(null) // user stats debounce queue
+  const statsTimerRef = useRef(null)
+
+  useEffect(() => { userRef.current = user }, [user])
 
   const setDailyChallenge = (val) => {
     if (typeof window !== 'undefined') localStorage.setItem('dailyChallenge', val)
@@ -62,7 +70,7 @@ export function AppProvider({ children }) {
     return (1 - adjustedAccuracy) * 100 + overdueRatio * 25
   }
 
-  const generateDailyWords = async (freshWordStats) => {
+  const generateDailyWords = async (freshWordStats, userId) => {
     if (wordsGeneratedRef.current && dailyWords.length > 0) return
     const { topikIWords, allWords } = await getWords()
     const topikIIUnlocked = totalCompleted >= 500
@@ -82,17 +90,28 @@ export function AppProvider({ children }) {
     const difficult = sorted.slice(0, difficultCount)
     const random = sorted.slice(difficultCount).sort(() => Math.random() - 0.5).slice(0, bufferSize - difficultCount)
     const selected = [...difficult, ...random].sort(() => Math.random() - 0.5)
-    saveDailyChallenge(selected.map(w => w.korean))
+    const uid = userId ?? userRef.current?.id
+    if (uid) saveDailyChallenge(uid, selected.map(w => w.korean))
     setDailyWords(selected)
     setCurrentIndex(0)
     wordsGeneratedRef.current = true
   }
 
-  const loadUserData = async () => {
-    getWords() // pre-warm cache in parallel with Supabase fetch
+  const loadUserData = async (userId) => {
+    getWords() // pre-warm cache in parallel with Supabase fetches
     try {
-      const { data: stats, error: statsError } = await getUserStats()
+      // Fetch all three in parallel — 3 sequential round-trips → 1 parallel batch
+      const [
+        { data: stats, error: statsError },
+        { data: progress, error: progressError },
+        { data: savedChallenge },
+      ] = await Promise.all([
+        getUserStats(userId),
+        getWordProgress(userId),
+        getDailyChallenge(userId),
+      ])
       if (statsError) throw statsError
+      if (progressError) throw progressError
       if (stats) {
         setTotalCompleted(stats.total_completed || 0)
         setScore(stats.current_score || 0)
@@ -106,13 +125,11 @@ export function AppProvider({ children }) {
           setStreak(newStreak)
           setDailyCorrect(0)
           setScore(0)
-          await saveUserStats(stats.total_completed, 0, newStreak, today, 0)
+          await saveUserStats(userId, stats.total_completed, 0, newStreak, today, 0)
         } else {
           setDailyCorrect(stats.daily_correct || 0)
         }
       }
-      const { data: progress, error: progressError } = await getWordProgress()
-      if (progressError) throw progressError
       let freshWordStats = {}
       if (progress) {
         progress.forEach(p => {
@@ -125,19 +142,18 @@ export function AppProvider({ children }) {
         setWordStats(freshWordStats)
       }
       if (!wordsGeneratedRef.current) {
-        const { data: saved } = await getDailyChallenge()
-        if (saved?.word_koreans?.length > 0) {
+        if (savedChallenge?.word_koreans?.length > 0) {
           const { allWords } = await getWords()
-          const words = saved.word_koreans.map(k => allWords.find(w => w.korean === k)).filter(Boolean)
+          const words = savedChallenge.word_koreans.map(k => allWords.find(w => w.korean === k)).filter(Boolean)
           if (words.length > 0) {
             setDailyWords(words)
             setCurrentIndex(0)
             wordsGeneratedRef.current = true
           } else {
-            await generateDailyWords(freshWordStats)
+            await generateDailyWords(freshWordStats, userId)
           }
         } else {
-          await generateDailyWords(freshWordStats)
+          await generateDailyWords(freshWordStats, userId)
         }
       }
     } catch (err) {
@@ -156,7 +172,7 @@ export function AppProvider({ children }) {
       const { data: { session } } = await supabase.auth.getSession()
       if (!mounted) return
       setUser(session?.user || null)
-      if (session?.user && !wordsGeneratedRef.current) await loadUserData()
+      if (session?.user && !wordsGeneratedRef.current) await loadUserData(session.user.id)
       setLoading(false)
     }
     checkUser()
@@ -164,7 +180,7 @@ export function AppProvider({ children }) {
       if (!mounted) return
       const wasLoggedOut = !user && session?.user
       setUser(session?.user || null)
-      if (wasLoggedOut && session?.user) loadUserData()
+      if (wasLoggedOut && session?.user) loadUserData(session.user.id)
     })
     return () => {
       mounted = false
@@ -172,6 +188,20 @@ export function AppProvider({ children }) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Flush all queued word-progress saves immediately (used on sign-out)
+  const flushPendingSaves = async () => {
+    const userId = userRef.current?.id
+    if (!userId) return
+    const entries = Object.entries(pendingSavesRef.current)
+    if (entries.length === 0) return
+    pendingSavesRef.current = {}
+    await Promise.all(
+      entries.map(([korean, s]) =>
+        saveWordProgress(userId, korean, s.attempts, s.correct, s.hintsUsed, s.examplesUsed)
+      )
+    )
+  }
 
   const updateWordStats = async (word, isCorrect, usedHint, usedExample) => {
     const stats = wordStats[word.korean] || { attempts: 0, correct: 0, hintsUsed: 0, examplesUsed: 0, lastSeen: 0 }
@@ -183,11 +213,30 @@ export function AppProvider({ children }) {
       lastSeen: Date.now(),
     }
     setWordStats(prev => ({ ...prev, [word.korean]: newStats }))
-    try {
-      await saveWordProgress(word.korean, newStats.attempts, newStats.correct, newStats.hintsUsed, newStats.examplesUsed)
-    } catch {
-      setError('Failed to save progress. Your streak may not be recorded.')
-    }
+    // Queue for batched save — flushes 2s after the last answer
+    pendingSavesRef.current[word.korean] = newStats
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      flushPendingSaves().catch(() =>
+        setError('Failed to save progress. Your streak may not be recorded.')
+      )
+    }, 2000)
+  }
+
+  // Debounced user-stats save — safe because each call supersedes the previous (upsert)
+  const recordScore = (newTotal, newScore, newStreak, newDailyCorrect) => {
+    pendingStatsRef.current = { newTotal, newScore, newStreak, newDailyCorrect }
+    if (statsTimerRef.current) clearTimeout(statsTimerRef.current)
+    statsTimerRef.current = setTimeout(() => {
+      const userId = userRef.current?.id
+      if (!userId || !pendingStatsRef.current) return
+      const { newTotal, newScore, newStreak, newDailyCorrect } = pendingStatsRef.current
+      pendingStatsRef.current = null
+      const today = new Date().toISOString().split('T')[0]
+      saveUserStats(userId, newTotal, newScore, newStreak, today, newDailyCorrect).catch(() =>
+        setError('Failed to save stats. Please check your connection.')
+      )
+    }, 2000)
   }
 
   const speakKorean = (text) => {
@@ -200,6 +249,18 @@ export function AppProvider({ children }) {
   }
 
   const handleSignOut = async () => {
+    // Flush any queued saves before signing out
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    if (statsTimerRef.current) clearTimeout(statsTimerRef.current)
+    await flushPendingSaves()
+    if (pendingStatsRef.current) {
+      const userId = userRef.current?.id
+      if (userId) {
+        const { newTotal, newScore, newStreak, newDailyCorrect } = pendingStatsRef.current
+        const today = new Date().toISOString().split('T')[0]
+        await saveUserStats(userId, newTotal, newScore, newStreak, today, newDailyCorrect)
+      }
+    }
     await supabase.auth.signOut()
     setUser(null)
   }
@@ -212,7 +273,7 @@ export function AppProvider({ children }) {
     setDailyCorrect(0)
     setDailySkipped(0)
     const today = new Date().toISOString().split('T')[0]
-    saveUserStats(totalCompleted, 0, streak, today, 0)
+    saveUserStats(userRef.current?.id, totalCompleted, 0, streak, today, 0)
   }
 
   const handleReviewDifficult = async () => {
@@ -263,7 +324,7 @@ export function AppProvider({ children }) {
       score, setScore, totalCompleted, setTotalCompleted,
       dailyChallenge, setDailyChallenge,
       streak, setStreak,
-      wordStats, updateWordStats,
+      wordStats, updateWordStats, recordScore,
       reviewMode, setReviewMode,
       reverseMode, setReverseMode,
       dailyCorrect, setDailyCorrect,

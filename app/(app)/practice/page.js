@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useApp } from '@/app/providers'
 import dynamic from 'next/dynamic'
-import { saveUserStats } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
 const PracticeCard     = dynamic(() => import('@/components/PracticeCard'))
@@ -21,7 +20,7 @@ export default function PracticePage() {
     dailySkipped, setDailySkipped, isReviewing, setIsReviewing,
     setError, wordsGeneratedRef, generateDailyWords,
     speakKorean, handleNewChallenge, handleReviewDifficult,
-    getWordDifficulty, getCurrentRank,
+    getWordDifficulty, getCurrentRank, recordScore,
   } = useApp()
 
   const [input, setInput] = useState('')
@@ -76,12 +75,7 @@ export default function PracticePage() {
         setScore(newScore)
         setTotalCompleted(newTotal)
         setDailyCorrect(newDailyCorrect)
-        try {
-          const today = new Date().toISOString().split('T')[0]
-          await saveUserStats(newTotal, newScore, streak, today, newDailyCorrect)
-        } catch {
-          setError('Failed to save stats. Please check your connection.')
-        }
+        recordScore(newTotal, newScore, streak, newDailyCorrect)
       }
     } else {
       setFeedback('wrong')

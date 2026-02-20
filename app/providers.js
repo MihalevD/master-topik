@@ -79,13 +79,13 @@ export function AppProvider({ children }) {
     if (wordsGeneratedRef.current && dailyWords.length > 0) return
     const { topikIWords, allWords } = await getWords()
     const topikIIUnlocked = totalCompleted >= TOPIKII_UNLOCK_THRESHOLD
-    let availableWords = (topikIIUnlocked ? allWords : topikIWords).filter(w => w.image)
+    let availableWords = topikIIUnlocked ? allWords : topikIWords
     if (reviewMode) {
       const ws = freshWordStats ?? wordStats
       availableWords = availableWords.filter(w => ws[w.korean]?.attempts > 0)
       if (availableWords.length === 0) {
         setReviewMode(false)
-        availableWords = (topikIIUnlocked ? allWords : topikIWords).filter(w => w.image)
+        availableWords = topikIIUnlocked ? allWords : topikIWords
       }
     }
     const dc = typeof window !== 'undefined' ? Number(localStorage.getItem('dailyChallenge') || DEFAULT_DAILY_CHALLENGE) : DEFAULT_DAILY_CHALLENGE

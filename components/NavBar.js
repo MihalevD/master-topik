@@ -133,6 +133,9 @@ export default function NavBar() {
             <button onClick={() => nav('/alphabet')} className={tabClass('/alphabet')}>
               <Languages size={14} />Hangul
             </button>
+            <button onClick={() => nav('/review-images')} className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer whitespace-nowrap bg-yellow-900/50 text-yellow-400 border border-yellow-700/50">
+              🖼 Test
+            </button>
           </div>
         </div>
 
@@ -158,6 +161,9 @@ export default function NavBar() {
               </button>
               <button onClick={() => nav('/alphabet')} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg ${isActive('/alphabet') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
                 <Languages size={18} />Hangul
+              </button>
+              <button onClick={() => nav('/review-images')} className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-yellow-900/50 text-yellow-400 border border-yellow-700/50 transition-colors cursor-pointer">
+                🖼 Test
               </button>
             </div>
 

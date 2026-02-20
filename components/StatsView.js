@@ -1,6 +1,7 @@
 'use client'
 
 import { BarChart3 } from 'lucide-react'
+import { accuracyColor } from '@/lib/constants'
 
 export default function StatsView({ totalCompleted, streak, hardWords, accuracy, setCurrentView }) {
   return (
@@ -45,7 +46,7 @@ export default function StatsView({ totalCompleted, streak, hardWords, accuracy,
                 {hardWords.map((word, i) => (
                   <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-700 border border-gray-600">
                     <span className="font-bold text-white text-sm">{word.korean}</span>
-                    <span className={`text-xs font-semibold ${word.accuracy < 0.3 ? 'text-red-400' : word.accuracy < 0.6 ? 'text-yellow-400' : 'text-green-400'}`}>
+                    <span className={`text-xs font-semibold ${accuracyColor(word.accuracy)}`}>
                       {(word.accuracy * 100).toFixed(0)}%
                     </span>
                   </div>

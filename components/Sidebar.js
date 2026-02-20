@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Lock, Brain, BookOpen, Zap, Flame } from 'lucide-react'
+import { TOPIKII_UNLOCK_THRESHOLD, REVIEW_DIFFICULT_COUNT } from '@/lib/constants'
 
 export default function Sidebar({
   dailyCorrect, dailyChallenge, score, progress,
@@ -47,7 +48,7 @@ export default function Sidebar({
           className="w-full bg-gradient-to-r from-red-600 to-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5 cursor-pointer"
         >
           <Brain size={14} />
-          Review 10 Difficult Words
+          Review {REVIEW_DIFFICULT_COUNT} Difficult Words
         </button>
       </div>
 
@@ -60,12 +61,12 @@ export default function Sidebar({
           <div>
             <div className="flex justify-between mb-1">
               <span className="text-xs text-blue-400 font-medium">TOPIK I</span>
-              <span className="text-xs text-blue-300/70 tabular-nums">{Math.min(totalCompleted, 500)}/500</span>
+              <span className="text-xs text-blue-300/70 tabular-nums">{Math.min(totalCompleted, TOPIKII_UNLOCK_THRESHOLD)}/{TOPIKII_UNLOCK_THRESHOLD}</span>
             </div>
             <div className="w-full bg-gray-900/60 rounded-full h-1.5 overflow-hidden">
               <div
                 className="bg-gradient-to-r from-blue-600 to-blue-400 h-full rounded-full transition-all duration-500"
-                style={{ width: `${Math.min((totalCompleted / 500) * 100, 100)}%` }}
+                style={{ width: `${Math.min((totalCompleted / TOPIKII_UNLOCK_THRESHOLD) * 100, 100)}%` }}
               />
             </div>
           </div>
@@ -73,13 +74,13 @@ export default function Sidebar({
             <div className="flex justify-between mb-1">
               <span className={`text-xs font-medium ${topikIIUnlocked ? 'text-purple-400' : 'text-gray-600'}`}>TOPIK II</span>
               <span className={`text-xs tabular-nums ${topikIIUnlocked ? 'text-purple-300/70' : 'text-gray-600'}`}>
-                {Math.max(0, totalCompleted - 500)}/500
+                {Math.max(0, totalCompleted - TOPIKII_UNLOCK_THRESHOLD)}/{TOPIKII_UNLOCK_THRESHOLD}
               </span>
             </div>
             <div className="w-full bg-gray-900/60 rounded-full h-1.5 overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${topikIIUnlocked ? 'bg-gradient-to-r from-purple-600 to-purple-400' : 'bg-gray-700'}`}
-                style={{ width: `${topikIIUnlocked ? Math.min(((totalCompleted - 500) / 500) * 100, 100) : 0}%` }}
+                style={{ width: `${topikIIUnlocked ? Math.min(((totalCompleted - TOPIKII_UNLOCK_THRESHOLD) / TOPIKII_UNLOCK_THRESHOLD) * 100, 100) : 0}%` }}
               />
             </div>
           </div>
@@ -87,7 +88,7 @@ export default function Sidebar({
         {!topikIIUnlocked && (
           <p className="flex items-center gap-1 mt-2.5 text-gray-600 text-[11px]">
             <Lock size={11} />
-            {500 - totalCompleted} more to unlock TOPIK II
+            {TOPIKII_UNLOCK_THRESHOLD - totalCompleted} more to unlock TOPIK II
           </p>
         )}
       </div>

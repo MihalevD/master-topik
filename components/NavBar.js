@@ -5,28 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { Sparkles, Trophy, Flame, LogOut, Settings as SettingsIcon, BookOpen, BookMarked, Languages, X, Lock, Check } from 'lucide-react'
 import { ranks } from '@/lib/ranks'
 import { useApp } from '@/app/providers'
-
-const rankMeta = {
-  '초보자':      { en: 'Beginner',    emoji: '🌱' },
-  '학습자':      { en: 'Learner',     emoji: '📖' },
-  '숙련자':      { en: 'Proficient',  emoji: '⚡' },
-  '고급자':      { en: 'Advanced',    emoji: '🌟' },
-  '전문가':      { en: 'Expert',      emoji: '💎' },
-  '마스터':      { en: 'Master',      emoji: '🏆' },
-  '그랜드마스터': { en: 'Grand Master', emoji: '👑' },
-  '전설':        { en: 'Legend',      emoji: '🔥' },
-}
-
-const colorMap = {
-  gray:   { text: 'text-gray-400',   border: 'border-gray-500/40',   bg: 'bg-gray-500/10',   ring: 'ring-gray-500/30',   gradient: 'from-gray-500/20 to-gray-600/10'   },
-  blue:   { text: 'text-blue-400',   border: 'border-blue-500/40',   bg: 'bg-blue-500/10',   ring: 'ring-blue-500/30',   gradient: 'from-blue-500/20 to-blue-600/10'   },
-  cyan:   { text: 'text-cyan-400',   border: 'border-cyan-500/40',   bg: 'bg-cyan-500/10',   ring: 'ring-cyan-500/30',   gradient: 'from-cyan-500/20 to-cyan-600/10'   },
-  green:  { text: 'text-green-400',  border: 'border-green-500/40',  bg: 'bg-green-500/10',  ring: 'ring-green-500/30',  gradient: 'from-green-500/20 to-green-600/10'  },
-  purple: { text: 'text-purple-400', border: 'border-purple-500/40', bg: 'bg-purple-500/10', ring: 'ring-purple-500/30', gradient: 'from-purple-500/20 to-purple-600/10' },
-  pink:   { text: 'text-pink-400',   border: 'border-pink-500/40',   bg: 'bg-pink-500/10',   ring: 'ring-pink-500/30',   gradient: 'from-pink-500/20 to-pink-600/10'   },
-  orange: { text: 'text-orange-400', border: 'border-orange-500/40', bg: 'bg-orange-500/10', ring: 'ring-orange-500/30', gradient: 'from-orange-500/20 to-orange-600/10' },
-  yellow: { text: 'text-yellow-400', border: 'border-yellow-500/40', bg: 'bg-yellow-500/10', ring: 'ring-yellow-500/30', gradient: 'from-yellow-500/20 to-yellow-600/10' },
-}
+import { APP_NAME, RANK_META, RANK_COLOR_MAP } from '@/lib/constants'
 
 export default function NavBar() {
   const router = useRouter()
@@ -35,8 +14,8 @@ export default function NavBar() {
   const [showRankPopup, setShowRankPopup] = useState(false)
 
   const currentRank = getCurrentRank()
-  const englishName = rankMeta[currentRank?.name]?.en || currentRank?.name || ''
-  const rankColor = colorMap[currentRank?.color] || colorMap.gray
+  const englishName = RANK_META[currentRank?.name]?.en || currentRank?.name || ''
+  const rankColor = RANK_COLOR_MAP[currentRank?.color] || RANK_COLOR_MAP.gray
 
   const isActive = (path) => pathname === path || (path === '/practice' && pathname === '/')
   const nav = (path) => router.push(path)
@@ -55,7 +34,7 @@ export default function NavBar() {
             <div className="flex items-center gap-2">
               <Sparkles className="text-purple-400" size={20} />
               <h1 className="text-base font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
-                한글 TOPIK Master
+                {APP_NAME}
               </h1>
             </div>
             <div className="flex items-center gap-2">
@@ -101,7 +80,7 @@ export default function NavBar() {
             <div className="flex items-center gap-3">
               <Sparkles className="text-purple-400" size={24} />
               <h1 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
-                한글 TOPIK Master
+                {APP_NAME}
               </h1>
             </div>
 
@@ -158,7 +137,7 @@ export default function NavBar() {
                 <div>
                   <p className="text-gray-400 text-xs font-medium uppercase tracking-widest mb-1">Your Rank</p>
                   <div className="flex items-center gap-2">
-                    <span className="text-3xl">{rankMeta[currentRank?.name]?.emoji}</span>
+                    <span className="text-3xl">{RANK_META[currentRank?.name]?.emoji}</span>
                     <div>
                       <p className={`text-xl font-bold ${rankColor.text}`}>{englishName}</p>
                       <p className="text-gray-500 text-xs">{currentRank?.name} · {currentRank?.level}</p>
@@ -176,8 +155,8 @@ export default function NavBar() {
                 const currentIdx = ranks.findIndex(x => x.name === currentRank?.name)
                 const isCurrent = i === currentIdx
                 const isPast    = i < currentIdx
-                const c = colorMap[r.color] || colorMap.gray
-                const meta = rankMeta[r.name] || { en: r.name, emoji: '⭐' }
+                const c = RANK_COLOR_MAP[r.color] || colorMap.gray
+                const meta = RANK_META[r.name] || { en: r.name, emoji: '⭐' }
                 const xpRange = r.max === Infinity ? `${r.min.toLocaleString()}+` : `${r.min.toLocaleString()} – ${r.max.toLocaleString()}`
                 return (
                   <div

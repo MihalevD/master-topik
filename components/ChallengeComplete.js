@@ -1,6 +1,7 @@
 'use client'
 
 import { Trophy } from 'lucide-react'
+import { TOPIKII_UNLOCK_THRESHOLD } from '@/lib/constants'
 
 export default function ChallengeComplete({ score, streak, totalCompleted, dailyCorrect, dailySkipped, onReview, onNewChallenge }) {
   return (
@@ -31,7 +32,7 @@ export default function ChallengeComplete({ score, streak, totalCompleted, daily
           </div>
         </div>
 
-        {totalCompleted === 500 && (
+        {totalCompleted === TOPIKII_UNLOCK_THRESHOLD && (
           <div className="bg-yellow-400 text-yellow-900 rounded-xl p-4 mb-4">
             <Trophy className="inline mr-2" size={32} />
             <span className="text-xl font-bold">TOPIK II UNLOCKED!</span>

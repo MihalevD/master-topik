@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useApp } from '@/app/providers'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
+import { POINTS, TOPIKII_UNLOCK_THRESHOLD } from '@/lib/constants'
 
 const PracticeCard     = dynamic(() => import('@/components/PracticeCard'))
 const Sidebar          = dynamic(() => import('@/components/Sidebar'))
@@ -31,8 +32,8 @@ export default function PracticePage() {
   const currentWord = dailyWords.length > 0 ? dailyWords[currentIndex] : null
   const progress = (dailyCorrect / dailyChallenge) * 100
   const currentWordDifficulty = currentWord ? getWordDifficulty(currentWord) : 'New'
-  const points = isReviewing ? 0 : showHint ? 5 : showExample ? 7 : 10
-  const topikIIUnlocked = totalCompleted >= 500
+  const points = isReviewing ? POINTS.REVIEW : showHint ? POINTS.HINT : showExample ? POINTS.EXAMPLE : POINTS.BASE
+  const topikIIUnlocked = totalCompleted >= TOPIKII_UNLOCK_THRESHOLD
   const currentRank = getCurrentRank()
 
   const handleNextWord = (isSkip = false) => {
@@ -68,7 +69,7 @@ export default function PracticePage() {
     if (isCorrect) {
       setFeedback('correct')
       if (!isReviewing && !reviewMode) {
-        const pts = showHint ? 5 : showExample ? 7 : 10
+        const pts = showHint ? POINTS.HINT : showExample ? POINTS.EXAMPLE : POINTS.BASE
         const newScore = score + pts
         const newTotal = totalCompleted + 1
         const newDailyCorrect = dailyCorrect + 1

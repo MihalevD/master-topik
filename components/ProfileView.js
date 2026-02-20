@@ -1,18 +1,10 @@
 'use client'
 
 import { BarChart3, Award } from 'lucide-react'
-
-const allAchievements = (totalCompleted, streak) => [
-  { id: 'first_10',    name: 'First Steps',     desc: 'Learn 10 words',    icon: '🎯', unlocked: totalCompleted >= 10  },
-  { id: 'first_25',   name: 'Quarter Century',  desc: 'Learn 25 words',    icon: '🌟', unlocked: totalCompleted >= 25  },
-  { id: 'century',    name: 'Century Club',     desc: 'Learn 100 words',   icon: '💯', unlocked: totalCompleted >= 100 },
-  { id: 'topik_ii',   name: 'Level Up!',        desc: 'Unlock TOPIK II',   icon: '🔓', unlocked: totalCompleted >= 500 },
-  { id: 'week_streak',  name: 'Dedicated',      desc: '7 day streak',      icon: '🔥', unlocked: streak >= 7  },
-  { id: 'month_streak', name: 'Committed',      desc: '30 day streak',     icon: '🌙', unlocked: streak >= 30 },
-]
+import { getAchievements, accuracyColor } from '@/lib/constants'
 
 export default function ProfileView({ totalCompleted, streak, hardWords, accuracy }) {
-  const achievements = allAchievements(totalCompleted, streak)
+  const achievements = getAchievements(totalCompleted, streak)
   const unlocked = achievements.filter(a => a.unlocked).length
 
   return (
@@ -54,7 +46,7 @@ export default function ProfileView({ totalCompleted, streak, hardWords, accurac
                 {hardWords.map((word, i) => (
                   <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-700/60 border border-gray-600/50">
                     <span className="font-bold text-white text-sm">{word.korean}</span>
-                    <span className={`text-xs font-semibold ${word.accuracy < 0.3 ? 'text-red-400' : word.accuracy < 0.6 ? 'text-yellow-400' : 'text-green-400'}`}>
+                    <span className={`text-xs font-semibold ${accuracyColor(word.accuracy)}`}>
                       {(word.accuracy * 100).toFixed(0)}%
                     </span>
                   </div>

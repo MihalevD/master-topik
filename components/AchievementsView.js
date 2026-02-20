@@ -1,16 +1,10 @@
 'use client'
 
 import { Award } from 'lucide-react'
+import { getAchievements } from '@/lib/constants'
 
 export default function AchievementsView({ totalCompleted, streak, setCurrentView }) {
-  const allAchievements = [
-    { id: 'first_10', name: 'First Steps', desc: 'Learn 10 words', icon: '🎯', unlocked: totalCompleted >= 10 },
-    { id: 'first_25', name: 'Quarter Century', desc: 'Learn 25 words', icon: '🌟', unlocked: totalCompleted >= 25 },
-    { id: 'topik_ii', name: 'Level Up!', desc: 'Unlock TOPIK II', icon: '🔓', unlocked: totalCompleted >= 500 },
-    { id: 'century', name: 'Century Club', desc: 'Learn 100 words', icon: '💯', unlocked: totalCompleted >= 100 },
-    { id: 'week_streak', name: 'Dedicated', desc: '7 day streak', icon: '🔥', unlocked: streak >= 7 },
-    { id: 'month_streak', name: 'Committed', desc: '30 day streak', icon: '🌙', unlocked: streak >= 30 },
-  ]
+  const allAchievements = getAchievements(totalCompleted, streak)
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">

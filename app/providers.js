@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { supabase, saveWordProgress, getWordProgress, saveUserStats, getUserStats, saveDailyChallenge, getDailyChallenge } from '@/lib/supabase'
 import { ranks } from '@/lib/ranks'
+import { TOPIKII_UNLOCK_THRESHOLD, DEFAULT_DAILY_CHALLENGE, REVIEW_DIFFICULT_COUNT } from '@/lib/constants'
 
 const AppContext = createContext(null)
 
@@ -23,9 +24,9 @@ export function AppProvider({ children }) {
   const [dailyChallenge, setDailyChallengeState] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('dailyChallenge')
-      return saved ? Number(saved) : 25
+      return saved ? Number(saved) : DEFAULT_DAILY_CHALLENGE
     }
-    return 25
+    return DEFAULT_DAILY_CHALLENGE
   })
   const [streak, setStreak] = useState(0)
   const [wordStats, setWordStats] = useState({})
@@ -73,7 +74,7 @@ export function AppProvider({ children }) {
   const generateDailyWords = async (freshWordStats, userId) => {
     if (wordsGeneratedRef.current && dailyWords.length > 0) return
     const { topikIWords, allWords } = await getWords()
-    const topikIIUnlocked = totalCompleted >= 500
+    const topikIIUnlocked = totalCompleted >= TOPIKII_UNLOCK_THRESHOLD
     let availableWords = (topikIIUnlocked ? allWords : topikIWords).filter(w => w.image)
     if (reviewMode) {
       const ws = freshWordStats ?? wordStats
@@ -83,7 +84,7 @@ export function AppProvider({ children }) {
         availableWords = (topikIIUnlocked ? allWords : topikIWords).filter(w => w.image)
       }
     }
-    const dc = typeof window !== 'undefined' ? Number(localStorage.getItem('dailyChallenge') || 25) : 25
+    const dc = typeof window !== 'undefined' ? Number(localStorage.getItem('dailyChallenge') || DEFAULT_DAILY_CHALLENGE) : DEFAULT_DAILY_CHALLENGE
     const sorted = [...availableWords].sort((a, b) => calculateWordPriority(b, freshWordStats) - calculateWordPriority(a, freshWordStats))
     const bufferSize = dc * 3
     const difficultCount = Math.floor(bufferSize * 0.7)
@@ -283,7 +284,7 @@ export function AppProvider({ children }) {
       .map(([korean]) => allWords.find(w => w.korean === korean))
       .filter(Boolean)
       .sort(() => Math.random() - 0.5)
-      .slice(0, 10)
+      .slice(0, REVIEW_DIFFICULT_COUNT)
     if (difficult.length === 0) {
       alert('No difficult words to review! Keep practicing! 🎉')
     } else {

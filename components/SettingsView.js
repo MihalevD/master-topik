@@ -1,6 +1,7 @@
 'use client'
 
 import { Settings as SettingsIcon } from 'lucide-react'
+import { DAILY_CHALLENGE_OPTIONS } from '@/lib/constants'
 
 export default function SettingsView({
   dailyChallenge, setDailyChallenge,
@@ -38,10 +39,9 @@ export default function SettingsView({
                 onChange={(e) => setDailyChallenge(Number(e.target.value))}
                 className="w-full p-3 rounded-lg border-2 bg-gray-700 text-white border-gray-600 cursor-pointer"
               >
-                <option value={1}>1 word (Test)</option>
-                <option value={10}>10 words (Quick)</option>
-                <option value={25}>25 words (Standard)</option>
-                <option value={50}>50 words (Intense)</option>
+                {DAILY_CHALLENGE_OPTIONS.map(({ value, label }) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
               </select>
             </div>
 

@@ -84,20 +84,20 @@ function formatTime(ms) {
 }
 
 function getSpeedColor(ms) {
-  if (ms < 800) return 'text-green-400'
-  if (ms < 1500) return 'text-yellow-400'
+  if (ms < 1500) return 'text-green-400'
+  if (ms < 2500) return 'text-yellow-400'
   return 'text-red-400'
 }
 
 function getSpeedLabel(ms) {
-  if (ms < 800) return 'Lightning fast!'
-  if (ms < 1500) return 'Good speed'
+  if (ms < 1500) return 'Lightning fast!'
+  if (ms < 2500) return 'Good speed'
   return 'Keep practicing'
 }
 
 function getStars(avgMs) {
-  if (avgMs < 800) return 3
-  if (avgMs < 1500) return 2
+  if (avgMs < 1500) return 3
+  if (avgMs < 2500) return 2
   return 1
 }
 

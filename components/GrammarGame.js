@@ -78,6 +78,52 @@ function isConjugable(word) {
 }
 
 // ── Dynamic question generators ─────────────────────────────────────────────
+function makeSentenceStructureQ(word) {
+  const last = lastKoreanChar(word.korean)
+  if (!last) return null
+  const hasC = hasJongseong(last)
+  const obj = hasC ? `${word.korean}을` : `${word.korean}를`
+  const correct = `저는 ${obj} 좋아해요.`
+  return {
+    category: 'SentenceStructure',
+    question: `Choose the correct Korean word order:\n\n"I like ${word.english}."`,
+    translation: `Korean word order: Subject (저는) + Object (${obj}) + Verb (좋아해요)`,
+    answer: correct,
+    options: shuffle([correct, `저는 좋아해요 ${obj}.`, `${obj} 좋아해요 저는.`, `좋아해요 저는 ${obj}.`]),
+    explanation: `Korean uses SOV order: Subject (저는) + Object (${obj}) + Verb (좋아해요). The verb always comes last.`,
+  }
+}
+
+function makeTopicVsSubjectQ(word) {
+  const last = lastKoreanChar(word.korean)
+  if (!last) return null
+  const hasC = hasJongseong(last)
+  const askTopic = Math.random() < 0.5
+  if (askTopic) {
+    const answer = hasC ? '은' : '는'
+    const wrong  = hasC ? '는' : '은'
+    return {
+      category: 'TopicVsSubject',
+      question: `Introduce "${word.english}" as the TOPIC of the sentence:\n\n${word.korean}___ 좋아요.`,
+      translation: `"As for ${word.english}, it is good." — topic marker sets what the sentence is about`,
+      answer,
+      options: shuffle([answer, wrong, hasC ? '이' : '가', '를']),
+      explanation: `을/를 marks the topic (은/는). "${word.korean}" ends with ${hasC ? 'a consonant → 은' : 'a vowel → 는'}. Use 은/는 for known or general topics; 이/가 for new/emphasized subjects.`,
+    }
+  } else {
+    const answer = hasC ? '이' : '가'
+    const wrong  = hasC ? '가' : '이'
+    return {
+      category: 'TopicVsSubject',
+      question: `누가/무엇이 있어요? — mark "${word.english}" as the grammatical subject:\n\n${word.korean}___ 있어요.`,
+      translation: `"There is ${word.english}." / "Is there ${word.english}?" — 이/가 marks the subject`,
+      answer,
+      options: shuffle([answer, wrong, hasC ? '은' : '는', '를']),
+      explanation: `이/가 marks the grammatical subject (who/what does the action). "${word.korean}" ends with ${hasC ? 'a consonant → 이' : 'a vowel → 가'}. Use 이/가 to answer "who?" or introduce new information.`,
+    }
+  }
+}
+
 function makeTopicQ(word) {
   const last = lastKoreanChar(word.korean)
   if (!last) return null
@@ -349,6 +395,8 @@ function makeIrregularQ(word) {
 // ── Build question pool ──────────────────────────────────────────────────────
 // pool: 'noun' → particle/copula generators; 'verb' → conjugation generators
 const DYNAMIC_GENERATORS = [
+  { cat: 'SentenceStructure', fn: makeSentenceStructureQ, pool: 'noun' },
+  { cat: 'TopicVsSubject',    fn: makeTopicVsSubjectQ,    pool: 'noun' },
   { cat: 'TopicMarker',      fn: makeTopicQ,      pool: 'noun' },
   { cat: 'ObjectMarker',     fn: makeObjectQ,      pool: 'noun' },
   { cat: 'SubjectMarker',    fn: makeSubjectQ,     pool: 'noun' },
@@ -418,6 +466,9 @@ function buildQuestions(practicedWords, allWords, selectedCategories, staticQues
 
 // ── Component ────────────────────────────────────────────────────────────────
 const categoryColors = {
+  // TOPIK I — sentence structure
+  'SentenceStructure': 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+  'TopicVsSubject':    'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/30',
   // TOPIK I — granular particle categories
   'TopicMarker':      'bg-blue-500/20 text-blue-300 border-blue-500/30',
   'SubjectMarker':    'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',

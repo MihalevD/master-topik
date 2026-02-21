@@ -26,28 +26,28 @@ export default function HomePage() {
   const lvl = readiness?.current.level ?? 0
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center px-6 py-6">
+    <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-5 sm:py-6">
 
       {/* ── Title ── */}
-      <div className="mb-8 text-center">
-        <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400 mb-2">
+      <div className="mb-5 sm:mb-8 text-center">
+        <h1 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400 mb-1.5">
           {APP_NAME}
         </h1>
         <p className="text-gray-400 text-sm">What do you want to practice today?</p>
       </div>
 
-      <div className="w-full max-w-2xl space-y-3">
+      <div className="w-full max-w-2xl space-y-3 sm:space-y-4">
 
-        {/* ── Row 1: Words + Grammar ── */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* ── Row 1: Words + Grammar — stack on mobile, side-by-side on sm+ ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
           {/* Words */}
           <button
             onClick={() => router.push('/words')}
-            className="group relative flex items-center gap-4 p-5 rounded-2xl bg-gray-800/80 border border-gray-700/50 hover:border-purple-500/50 hover:bg-gray-800 transition-all cursor-pointer text-left shadow-lg"
+            className="group relative flex items-center gap-3 sm:gap-4 p-4 sm:p-5 rounded-2xl bg-white/[0.03] border border-white/[0.07] hover:border-purple-500/50 hover:bg-white/[0.05] transition-all cursor-pointer text-left"
           >
-            <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center group-hover:bg-purple-600/30 transition-colors">
-              <Library className="text-purple-400" size={28} />
+            <div className="flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center group-hover:bg-purple-600/30 transition-colors">
+              <Library className="text-purple-400" size={24} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-white font-bold text-base mb-0.5">Words</p>
@@ -58,15 +58,15 @@ export default function HomePage() {
                 </span>
               ) : null}
             </div>
-            <ChevronRight size={16} className="text-gray-600 group-hover:text-purple-400 transition-colors flex-shrink-0" />
+            <ChevronRight size={15} className="text-gray-600 group-hover:text-purple-400 transition-colors flex-shrink-0" />
           </button>
 
           {/* Grammar */}
           <div
-            className={`group/g relative flex items-center gap-4 p-5 rounded-2xl border shadow-lg transition-all ${
+            className={`group/g relative flex items-center gap-3 sm:gap-4 p-4 sm:p-5 rounded-2xl border transition-all ${
               grammarLocked
-                ? 'bg-gray-800/40 border-gray-700/30 cursor-not-allowed'
-                : 'bg-gray-800/80 border-gray-700/50 hover:border-blue-500/50 hover:bg-gray-800 cursor-pointer'
+                ? 'bg-white/[0.01] border-white/[0.04] cursor-not-allowed'
+                : 'bg-white/[0.03] border-white/[0.07] hover:border-blue-500/50 hover:bg-white/[0.05] cursor-pointer'
             }`}
             onClick={() => !grammarLocked && router.push('/grammar')}
           >
@@ -76,14 +76,14 @@ export default function HomePage() {
                 <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-700" />
               </div>
             )}
-            <div className={`flex-shrink-0 w-14 h-14 rounded-xl border flex items-center justify-center transition-colors ${
+            <div className={`flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-xl border flex items-center justify-center transition-colors ${
               grammarLocked
                 ? 'bg-gray-700/20 border-gray-600/20'
                 : 'bg-blue-600/20 border-blue-500/30 group-hover/g:bg-blue-600/30'
             }`}>
               {grammarLocked
-                ? <Lock className="text-gray-600" size={24} />
-                : <BookOpen className="text-blue-400" size={28} />
+                ? <Lock className="text-gray-600" size={22} />
+                : <BookOpen className="text-blue-400" size={24} />
               }
             </div>
             <div className="min-w-0 flex-1">
@@ -96,7 +96,7 @@ export default function HomePage() {
               )}
             </div>
             {!grammarLocked && (
-              <ChevronRight size={16} className="text-gray-600 group-hover/g:text-blue-400 transition-colors flex-shrink-0" />
+              <ChevronRight size={15} className="text-gray-600 group-hover/g:text-blue-400 transition-colors flex-shrink-0" />
             )}
           </div>
         </div>
@@ -105,20 +105,20 @@ export default function HomePage() {
         {readiness && rc && (
           <button
             onClick={() => router.push('/readiness')}
-            className="group w-full p-5 rounded-2xl bg-gray-800/80 border border-gray-700/50 hover:border-purple-500/40 hover:bg-gray-800 transition-all cursor-pointer text-left shadow-lg"
+            className="group w-full p-4 sm:p-5 rounded-2xl bg-white/[0.03] border border-white/[0.07] hover:border-purple-500/40 hover:bg-white/[0.05] transition-all cursor-pointer text-left"
           >
             {/* Header */}
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2.5">
-                <TrendingUp size={15} className="text-gray-400" />
+                <TrendingUp size={15} className="text-gray-400 flex-shrink-0" />
                 <div>
                   <p className="text-white font-bold text-sm leading-none mb-0.5">Korean Proficiency Level</p>
-                  <p className="text-gray-500 text-xs">
+                  <p className="hidden sm:block text-gray-500 text-xs mt-0.5">
                     급 <span className="text-gray-600">(gup)</span> — the Korean grading system · 1급 beginner → 6급 advanced
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                 <span className={`text-xs px-3 py-1 rounded-full font-bold ${rc.bg} ${rc.text}`}>
                   {lvl === 0 ? 'No level yet' : readiness.current.label}
                 </span>
@@ -130,7 +130,12 @@ export default function HomePage() {
             {readiness.next ? (
               <div>
                 <div className="flex justify-between text-xs text-gray-500 mb-1.5">
-                  <span>{readiness.progress}% toward <span className="text-gray-400 font-medium">{readiness.next.short}</span> ({readiness.next.level <= 2 ? 'TOPIK I' : 'TOPIK II'})</span>
+                  <span>
+                    <span className="sm:hidden">{readiness.progress}% to </span>
+                    <span className="hidden sm:inline">{readiness.progress}% toward </span>
+                    <span className="text-gray-400 font-medium">{readiness.next.short}</span>
+                    <span className="hidden sm:inline"> ({readiness.next.level <= 2 ? 'TOPIK I' : 'TOPIK II'})</span>
+                  </span>
                   <span className={`font-semibold ${rc.text}`}>{readiness.progress}%</span>
                 </div>
                 <div className="w-full bg-gray-700/60 rounded-full h-2">
@@ -147,17 +152,18 @@ export default function HomePage() {
         )}
 
         {/* ── Row 3: Hangul — full width, minimal ── */}
-        <div className="flex items-center gap-4 px-5 py-4 rounded-2xl bg-purple-500/8 border border-purple-500/20">
+        <div className="flex items-center gap-3 px-4 sm:px-5 py-3.5 sm:py-4 rounded-2xl bg-white/[0.03] border border-purple-500/20">
           <span className="text-2xl flex-shrink-0">한</span>
           <div className="flex-1 min-w-0">
             <p className="text-gray-300 font-semibold text-sm">New to Korean?</p>
-            <p className="text-gray-500 text-xs">Learn Hangul, the Korean alphabet — takes just a few minutes.</p>
+            <p className="text-gray-500 text-xs leading-relaxed">Learn the Korean alphabet — takes just minutes.</p>
           </div>
           <button
             onClick={() => router.push('/alphabet')}
-            className="flex-shrink-0 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold px-4 py-2 rounded-xl cursor-pointer transition-colors whitespace-nowrap"
+            className="flex-shrink-0 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold px-3 sm:px-4 py-2 rounded-xl cursor-pointer transition-colors whitespace-nowrap"
           >
-            Learn Hangul →
+            <span className="sm:hidden">Learn →</span>
+            <span className="hidden sm:inline">Learn Hangul →</span>
           </button>
         </div>
 

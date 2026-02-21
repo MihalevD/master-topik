@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { Sparkles, Flame, LogOut, Settings as SettingsIcon, BookMarked, Languages, X, Menu, TrendingUp, User } from 'lucide-react'
+import { Sparkles, Flame, LogOut, Settings as SettingsIcon, BookMarked, Languages, X, Menu, TrendingUp, User, Library, BookOpen } from 'lucide-react'
 import { useApp } from '@/app/providers'
 import { APP_NAME, getAchievements } from '@/lib/constants'
 import { MILESTONE_PHRASES, MILESTONE_COLORS } from '@/lib/rankAchievements'
@@ -76,13 +76,6 @@ export default function NavBar() {
             <Menu size={20} />
           </button>
 
-          <button onClick={() => nav('/home')} className="flex items-center gap-2 cursor-pointer">
-            <Sparkles className="text-purple-400" size={18} />
-            <h1 className="text-base font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
-              {APP_NAME}
-            </h1>
-          </button>
-
           <button
             onClick={() => hasNewAchievement ? setShowAchievementModal(true) : nav('/profile')}
             className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-gray-800 border border-orange-500 cursor-pointer"
@@ -123,8 +116,10 @@ export default function NavBar() {
           <div className="flex flex-col gap-1 p-4 flex-1 overflow-y-auto">
             <p className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider px-2 mb-1">Navigation</p>
             {[
+              { path: '/words',      icon: <Library size={18} />,   label: 'Words' },
+              { path: '/grammar',    icon: <BookOpen size={18} />,   label: 'Grammar' },
               { path: '/dictionary', icon: <BookMarked size={18} />, label: 'Dictionary' },
-              { path: '/alphabet', icon: <Languages size={18} />, label: 'Hangul' },
+              { path: '/alphabet',   icon: <Languages size={18} />,  label: 'Hangul' },
             ].map(({ path, icon, label }) => (
               <button
                 key={path}

@@ -1,12 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { Lock, Brain, BookOpen, Zap, Flame } from 'lucide-react'
-import { TOPIKII_UNLOCK_THRESHOLD, REVIEW_DIFFICULT_COUNT, RANK_META } from '@/lib/constants'
+import { Lock, Brain, BookOpen, Flame } from 'lucide-react'
+import { TOPIKII_UNLOCK_THRESHOLD, REVIEW_DIFFICULT_COUNT } from '@/lib/constants'
 
 export default function Sidebar({
-  dailyCorrect, dailyChallenge, score, progress,
-  totalCompleted, topikIIUnlocked, currentRank, streak, totalScore,
+  dailyCorrect, dailyChallenge, progress,
+  totalCompleted, topikIIUnlocked, streak,
   currentWord, onReviewDifficult, isReviewing
 }) {
   const [showKoreanExample, setShowKoreanExample] = useState(false)
@@ -16,22 +16,13 @@ export default function Sidebar({
 
       {/* ── Daily progress ── */}
       <div className="p-4 md:p-5">
-        {/* Today / Score row */}
-        <div className="grid grid-cols-2 gap-3 mb-3">
-          <div className="bg-gray-900/50 rounded-xl px-3 py-2.5 border border-gray-700/50">
-            <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">Today</p>
-            <p className="text-xl font-bold leading-none">
-              <span className="text-purple-400">{dailyCorrect}</span>
-              <span className="text-gray-600 text-base">/{dailyChallenge}</span>
-            </p>
-          </div>
-          <div className="bg-gray-900/50 rounded-xl px-3 py-2.5 border border-gray-700/50">
-            <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">Daily Score</p>
-            <p className="text-xl font-bold text-pink-400 leading-none flex items-center gap-1">
-              <Zap size={14} className="text-pink-500" />
-              {score}
-            </p>
-          </div>
+        {/* Today row */}
+        <div className="bg-gray-900/50 rounded-xl px-3 py-2.5 border border-gray-700/50 mb-3 flex items-center justify-between">
+          <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">Today</p>
+          <p className="text-xl font-bold leading-none">
+            <span className="text-purple-400">{dailyCorrect}</span>
+            <span className="text-gray-600 text-base">/{dailyChallenge}</span>
+          </p>
         </div>
 
         {/* Progress bar */}
@@ -98,14 +89,10 @@ export default function Sidebar({
       {/* ── Stats ── */}
       <div className="p-4 md:p-5">
         <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-3">Stats</p>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <div className="bg-gray-900/50 rounded-xl border border-gray-700/50 flex flex-col items-center justify-between py-2.5 px-1 min-h-[52px]">
-            <p className="text-lg font-bold text-pink-400 leading-none flex items-center gap-0.5"><Zap size={12} className="text-pink-500" />{(totalScore || 0).toLocaleString()}</p>
-            <p className="text-[10px] text-gray-500 leading-none">Score</p>
-          </div>
-          <div className="bg-gray-900/50 rounded-xl border border-gray-700/50 flex flex-col items-center justify-between py-2.5 px-1 min-h-[52px]">
-            <p className="text-xs font-bold text-pink-400 leading-none">{RANK_META[currentRank?.name]?.en || currentRank.level}</p>
-            <p className="text-[10px] text-gray-500 leading-none">Rank</p>
+            <p className="text-lg font-bold text-purple-400 leading-none">{totalCompleted.toLocaleString()}</p>
+            <p className="text-[10px] text-gray-500 leading-none">Words</p>
           </div>
           <div className="bg-gray-900/50 rounded-xl border border-gray-700/50 flex flex-col items-center justify-between py-2.5 px-1 min-h-[52px]">
             <p className="text-lg font-bold text-orange-400 leading-none flex items-center gap-0.5">

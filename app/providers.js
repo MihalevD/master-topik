@@ -6,6 +6,44 @@ import { getWords } from '@/lib/words'
 import { ranks } from '@/lib/ranks'
 import { TOPIKII_UNLOCK_THRESHOLD, DEFAULT_DAILY_CHALLENGE, REVIEW_DIFFICULT_COUNT } from '@/lib/constants'
 
+// ── Type-balanced daily word picker ──────────────────────────────────────────
+// Proportional targets per word type so every day has a healthy mix.
+// Ratios must roughly sum to 1. If a type has fewer words than its target,
+// the slack is filled by higher-priority words of any remaining type.
+const TYPE_SLOTS = [
+  ['noun',       0.38],
+  ['verb',       0.27],
+  ['adjective',  0.17],
+  ['adverb',     0.09],
+  ['expression', 0.05],
+  ['other',      0.04],
+]
+
+function pickBalanced(priorityList, count) {
+  // Group indices (= SRS rank) by word type; heuristic fallback when type is null.
+  const groups = {}
+  for (let i = 0; i < priorityList.length; i++) {
+    const w = priorityList[i]
+    const t = w.type || (w.korean?.trimEnd().endsWith('다') ? 'verb' : 'noun')
+    ;(groups[t] || (groups[t] = [])).push(i)
+  }
+
+  const picked = new Set()
+
+  // First pass — fill each type slot up to its proportional target.
+  for (const [type, ratio] of TYPE_SLOTS) {
+    const target = Math.max(1, Math.round(count * ratio))
+    const indices = groups[type] || []
+    for (let j = 0; j < Math.min(target, indices.length); j++) picked.add(indices[j])
+  }
+
+  // Second pass — backfill any remaining slots with the next-best SRS words.
+  for (let i = 0; i < priorityList.length && picked.size < count; i++) picked.add(i)
+
+  // Return in original priority order (shuffle happens in the caller).
+  return [...picked].sort((a, b) => a - b).map(i => priorityList[i])
+}
+
 // ── SRS (SM-2 inspired) ───────────────────────────────────────────────────────
 // Returns { interval (days), nextReview (ms timestamp) } after each answer
 function computeSRS(stats, isCorrect) {
@@ -107,8 +145,8 @@ export function AppProvider({ children }) {
     newWords.sort(() => Math.random() - 0.5)
 
     const bufferSize = dc * 3
-    const selected = [...dueWords, ...newWords, ...futureWords]
-      .slice(0, bufferSize)
+    const priorityList = [...dueWords, ...newWords, ...futureWords]
+    const selected = pickBalanced(priorityList, bufferSize)
       .sort(() => Math.random() - 0.5)   // shuffle the final mix
     const uid = userId ?? userRef.current?.id
     if (uid) saveDailyChallenge(uid, selected.map(w => w.korean))

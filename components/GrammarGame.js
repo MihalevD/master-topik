@@ -20,9 +20,14 @@ function lastKoreanChar(str) {
   }
   return null
 }
-// Use type field added by lib/words.js classifyWordType(); fall back to heuristic.
-const isNoun = (w) => (w.type ? w.type === 'noun' : !w.korean.trimEnd().endsWith('다'))
-const isVerb = (w) => (w.type ? w.type === 'verb' : w.korean.trimEnd().endsWith('다'))
+// Use type field from DB enrichment (lib/words.js); fall back to heuristic.
+// adjective = 형용사 (descriptive verbs: 크다, 예쁘다, 좋다…)
+// verb      = 동사  (action verbs: 가다, 먹다, 공부하다…)
+const isNoun      = (w) => w.type ? w.type === 'noun'      : !w.korean.trimEnd().endsWith('다')
+// For conjugation pools: adjectives conjugate identically to action verbs (아요/어요)
+const isVerb      = (w) => w.type
+  ? (w.type === 'verb' || w.type === 'adjective')
+  : w.korean.trimEnd().endsWith('다')
 function shuffle(arr) {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
@@ -495,18 +500,55 @@ export default function GrammarGame({ wordStats, allWords, onClose, onComplete, 
   }
 
   // ── Not enough words screen ──
-  const MIN_WORDS = 5
-  if (practicedWords.length < MIN_WORDS) return (
+  const MIN_NOUNS = 5
+  const MIN_VERBS = 3
+  const practicedNouns = practicedWords.filter(isNoun)
+  const practicedVerbs = practicedWords.filter(isVerb)
+  const unlockedNouns  = practicedNouns.length >= MIN_NOUNS
+  const unlockedVerbs  = practicedVerbs.length >= MIN_VERBS
+  if (!unlockedNouns || !unlockedVerbs) return (
     <div className="flex-1 flex flex-col items-center justify-center p-6">
       <div className="bg-gray-800/80 rounded-2xl border border-gray-700/50 p-8 max-w-sm w-full text-center shadow-2xl">
         <BookOpen className="mx-auto mb-4 text-purple-400" size={48} />
-        <p className="text-white text-xl font-bold mb-2">Not enough words yet</p>
-        <p className="text-gray-400 text-sm leading-relaxed mb-1">
-          You've practiced <span className="text-purple-400 font-semibold">{practicedWords.length}</span> word{practicedWords.length !== 1 ? 's' : ''}.
-        </p>
+        <p className="text-white text-xl font-bold mb-2">Unlock Grammar Game</p>
         <p className="text-gray-400 text-sm leading-relaxed mb-6">
-          Practice at least <span className="text-white font-semibold">{MIN_WORDS}</span> words in the Vocabulary section first, then come back to play.
+          Practice more vocabulary to unlock dynamic grammar questions.
         </p>
+
+        {/* Noun progress */}
+        <div className="mb-4 text-left">
+          <div className="flex justify-between items-center mb-1.5">
+            <span className="text-sm text-gray-300 font-medium">Nouns <span className="text-gray-500 font-normal text-xs">(명사)</span></span>
+            <span className={`text-sm font-bold ${unlockedNouns ? 'text-green-400' : 'text-gray-400'}`}>
+              {practicedNouns.length} / {MIN_NOUNS}
+              {unlockedNouns && ' ✓'}
+            </span>
+          </div>
+          <div className="w-full bg-gray-700/60 rounded-full h-2">
+            <div
+              className={`h-2 rounded-full transition-all ${unlockedNouns ? 'bg-green-500' : 'bg-blue-500'}`}
+              style={{ width: `${Math.min(100, (practicedNouns.length / MIN_NOUNS) * 100)}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Verb progress */}
+        <div className="mb-8 text-left">
+          <div className="flex justify-between items-center mb-1.5">
+            <span className="text-sm text-gray-300 font-medium">Verbs & Adjectives <span className="text-gray-500 font-normal text-xs">(동사·형용사)</span></span>
+            <span className={`text-sm font-bold ${unlockedVerbs ? 'text-green-400' : 'text-gray-400'}`}>
+              {practicedVerbs.length} / {MIN_VERBS}
+              {unlockedVerbs && ' ✓'}
+            </span>
+          </div>
+          <div className="w-full bg-gray-700/60 rounded-full h-2">
+            <div
+              className={`h-2 rounded-full transition-all ${unlockedVerbs ? 'bg-green-500' : 'bg-violet-500'}`}
+              style={{ width: `${Math.min(100, (practicedVerbs.length / MIN_VERBS) * 100)}%` }}
+            />
+          </div>
+        </div>
+
         <button onClick={onClose} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-xl font-bold hover:opacity-90 transition-opacity cursor-pointer">
           Go to Vocabulary
         </button>

@@ -19,7 +19,7 @@ export default function PracticePage() {
     dailySkipped, setDailySkipped, isReviewing, setIsReviewing,
     speakKorean, handleNewChallenge, handleReviewDifficult, handleReturnToChallenge,
     savedChallenge, completeChallengeScore,
-    getWordDifficulty, getCurrentRank, recordScore, totalScore,
+    getWordDifficulty, recordScore,
   } = useApp()
 
   const [input, setInput] = useState('')
@@ -32,8 +32,6 @@ export default function PracticePage() {
   const currentWordDifficulty = currentWord ? getWordDifficulty(currentWord) : 'New'
   const points = isReviewing ? POINTS.REVIEW : showHint ? POINTS.HINT : showExample ? POINTS.EXAMPLE : POINTS.BASE
   const topikIIUnlocked = totalCompleted >= TOPIKII_UNLOCK_THRESHOLD
-  const currentRank = getCurrentRank()
-
   const handleNextWord = (isSkip = false) => {
     if (isSkip && !isReviewing && !reviewMode) setDailySkipped(prev => prev + 1)
     const looping = isReviewing || reviewMode
@@ -114,7 +112,7 @@ export default function PracticePage() {
 
       {feedback === 'complete' ? (
         <ChallengeComplete
-          score={score} streak={streak} totalCompleted={totalCompleted}
+          streak={streak} totalCompleted={totalCompleted}
           dailyCorrect={dailyCorrect} dailySkipped={dailySkipped}
           onReview={() => {
             setDailyWords(prev => prev.slice(0, currentIndex + 1))
@@ -146,9 +144,9 @@ export default function PracticePage() {
                 <div className="hidden md:flex md:col-span-1 flex-col">
                   <Sidebar
                     dailyCorrect={dailyCorrect} dailyChallenge={dailyChallenge}
-                    score={score} progress={progress} totalCompleted={totalCompleted}
-                    topikIIUnlocked={topikIIUnlocked} currentRank={currentRank}
-                    streak={streak} totalScore={totalScore} currentWord={currentWord}
+                    progress={progress} totalCompleted={totalCompleted}
+                    topikIIUnlocked={topikIIUnlocked}
+                    streak={streak} currentWord={currentWord}
                     onReviewDifficult={() => handleReviewDifficult(dailyWords, currentIndex, dailyCorrect, dailySkipped)} isReviewing={isReviewing}
                   />
                 </div>
@@ -164,10 +162,6 @@ export default function PracticePage() {
                   <span className="text-base font-bold text-purple-400">{dailyCorrect}</span>
                   <span className="text-xs text-gray-500">/{dailyChallenge}</span>
                   <span className="text-xs text-gray-500 ml-1">words</span>
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-xs text-gray-500">⚡</span>
-                  <span className="text-sm font-bold text-pink-400">{score}</span>
                 </div>
                 <div className="flex items-baseline gap-1">
                   <span className="text-xs">🔥</span>

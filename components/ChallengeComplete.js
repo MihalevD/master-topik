@@ -3,13 +3,12 @@
 import { Trophy } from 'lucide-react'
 import { TOPIKII_UNLOCK_THRESHOLD } from '@/lib/constants'
 
-export default function ChallengeComplete({ score, streak, totalCompleted, dailyCorrect, dailySkipped, onReview, onNewChallenge }) {
+export default function ChallengeComplete({ streak, totalCompleted, dailyCorrect, dailySkipped, onReview, onNewChallenge }) {
   return (
     <div className="flex-1 flex items-center justify-center p-6">
       <div className="bg-gradient-to-r from-green-500 to-blue-600 text-white rounded-2xl shadow-2xl p-12 text-center max-w-2xl">
         <div className="text-6xl mb-4">🎉</div>
         <h2 className="text-4xl font-bold mb-4">대박! Challenge Complete!</h2>
-        <p className="text-xl mb-2">You scored {score} points today!</p>
         <p className="text-lg mb-4">Streak: {streak} days 🔥</p>
 
         {/* #15 — breakdown */}

@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import { Volume2 } from 'lucide-react'
 
-export default function CorrectModal({ word, points, onNext, onSpeak }) {
+export default function CorrectModal({ word, onNext, onSpeak }) {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
@@ -52,7 +52,6 @@ export default function CorrectModal({ word, points, onNext, onSpeak }) {
               )}
             </div>
             <p className="text-gray-400 mt-1 text-sm md:text-base">{word.english}</p>
-            {points > 0 && <p className="text-green-300 mt-1 text-sm font-semibold">+{points} points</p>}
           </div>
 
           <div className="bg-gray-700/50 rounded-xl p-3 md:p-4 mb-4 border border-gray-700">

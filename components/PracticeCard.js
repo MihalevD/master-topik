@@ -54,6 +54,15 @@ export default function PracticeCard({
     currentWordDifficulty === 'Easy'   ? 'bg-green-500/15 text-green-300 border border-green-500/30' :
                                          'bg-blue-500/15 text-blue-300 border border-blue-500/30'
 
+  const TYPE_CONFIG = {
+    verb:       { kr: '동사',  en: 'Verb',  color: 'bg-blue-500/15 text-blue-300 border-blue-500/30' },
+    adjective:  { kr: '형용사', en: 'Adj',  color: 'bg-violet-500/15 text-violet-300 border-violet-500/30' },
+    noun:       { kr: '명사',  en: 'Noun',  color: 'bg-slate-500/15 text-slate-300 border-slate-500/30' },
+    adverb:     { kr: '부사',  en: 'Adv',   color: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
+    expression: { kr: '표현',  en: 'Expr',  color: 'bg-teal-500/15 text-teal-300 border-teal-500/30' },
+  }
+  const typeConfig = word.type ? TYPE_CONFIG[word.type] : null
+
   return (
     <div className="bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-700/50 px-5 md:px-8 3xl:px-12 pt-5 md:pt-6 pb-5 md:pb-6">
 
@@ -61,11 +70,18 @@ export default function PracticeCard({
       <div className="flex flex-col items-center">
 
         {/* Badges */}
-        <div className="flex items-center gap-2 mb-4 md:mb-5">
+        <div className="flex items-center gap-2 mb-4 md:mb-5 flex-wrap justify-center">
           <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${difficultyStyle}`}>
             <Brain size={11} />
             {currentWordDifficulty}
           </span>
+          {typeConfig && (
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${typeConfig.color}`}>
+              {typeConfig.en}
+              <span className="opacity-60">·</span>
+              <span className="font-normal">{typeConfig.kr}</span>
+            </span>
+          )}
           {reverseMode && (
             <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/15 text-orange-300 border border-orange-500/30">
               <RefreshCw size={11} />
@@ -209,7 +225,7 @@ export default function PracticeCard({
             }`}
           >
             {showHint ? <EyeOff size={14} /> : <Eye size={14} />}
-            {showHint ? hintAnswer : 'Show Answer (-5)'}
+            {showHint ? hintAnswer : 'Show Answer'}
           </button>
 
           <button
@@ -218,10 +234,14 @@ export default function PracticeCard({
           >
             <BookOpen size={14} />
             {reverseMode
-              ? (showExample ? 'Hide Example' : 'Show Example (-3)')
-              : (showExample ? 'Hide Romanization' : 'Show Romanization (-3)')}
+              ? (showExample ? 'Hide Example' : 'Show Example')
+              : (showExample ? 'Hide Romanization' : 'Show Romanization')}
           </button>
         </div>
+
+        <p className="text-center text-[11px] text-gray-600 mt-2">
+          Tip: using hints keeps this word in your rotation longer
+        </p>
 
         {reverseMode && showExample && word.sentences?.[0] && (
           <div className="mt-3 p-3 bg-blue-900/20 rounded-xl border border-blue-800/40 text-center">

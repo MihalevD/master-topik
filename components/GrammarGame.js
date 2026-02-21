@@ -20,9 +20,9 @@ function lastKoreanChar(str) {
   }
   return null
 }
-// Heuristic: Korean verbs/adjectives end in 다 in dictionary form; nouns don't.
-// Particle generators only make sense attached to nouns.
-const isNoun = (w) => !w.korean.trimEnd().endsWith('다')
+// Use type field added by lib/words.js classifyWordType(); fall back to heuristic.
+const isNoun = (w) => (w.type ? w.type === 'noun' : !w.korean.trimEnd().endsWith('다'))
+const isVerb = (w) => (w.type ? w.type === 'verb' : w.korean.trimEnd().endsWith('다'))
 function shuffle(arr) {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
@@ -30,6 +30,46 @@ function shuffle(arr) {
     [a[i], a[j]] = [a[j], a[i]]
   }
   return a
+}
+
+// ── Verb conjugation helpers ─────────────────────────────────────────────────
+// Korean vowel harmony: bright (ㅏ/ㅗ family) → 아; dark → 어; 하다 → 해
+const BRIGHT_VOWELS = new Set([0, 1, 2, 3, 8, 9, 10, 11, 12]) // jungseong indices
+
+function stemVowelType(dictForm) {
+  const stem = dictForm.slice(0, -1) // remove 다
+  if (stem.endsWith('하')) return 'hada'
+  const last = stem[stem.length - 1]
+  const code = last?.charCodeAt(0) - 0xAC00
+  if (!last || code < 0 || code >= 11172) return 'dark'
+  return BRIGHT_VOWELS.has(Math.floor((code % 588) / 28)) ? 'bright' : 'dark'
+}
+function presentEnd(dictForm) {
+  const t = stemVowelType(dictForm)
+  return t === 'hada' ? '해요' : t === 'bright' ? '아요' : '어요'
+}
+function pastEnd(dictForm) {
+  const t = stemVowelType(dictForm)
+  return t === 'hada' ? '했어요' : t === 'bright' ? '았어요' : '었어요'
+}
+
+// Only generate conjugation questions for predictably regular verbs:
+// - 하다 verbs (always regular)
+// - consonant-ending stems where the batchim is NOT a known irregular class
+//   (excludes ㄷ=7, ㅂ=17, ㅅ=19, ㅆ=20, ㅎ=27, 르 endings, and complex clusters)
+// Vowel-ending stems are also excluded to avoid contraction complexity.
+const SAFE_JONGSEONG = new Set([1, 2, 4, 8, 16, 21, 22, 23, 24, 25, 26])
+function isConjugable(word) {
+  const k = word.korean.trimEnd()
+  if (!k.endsWith('다')) return false
+  const stem = k.slice(0, -1)
+  if (stem.endsWith('하')) return true          // 하다 — always safe
+  if (stem.endsWith('르')) return false         // 르 irregular (모르다, 부르다)
+  const last = stem[stem.length - 1]
+  const code = last?.charCodeAt(0) - 0xAC00
+  if (!last || code < 0 || code >= 11172) return false
+  const jongseong = code % 28
+  return SAFE_JONGSEONG.has(jongseong)          // safe consonant batchim only
 }
 
 // ── Dynamic question generators ─────────────────────────────────────────────
@@ -126,45 +166,248 @@ function makeDirQ(word) {
   }
 }
 
+// ── Verb / adjective generators ──────────────────────────────────────────────
+
+function makeVerbPresentQ(word) {
+  const t    = stemVowelType(word.korean)
+  const stem = word.korean.slice(0, -1)
+  const answer = presentEnd(word.korean)
+  // Options: correct ending + wrong vowel-harmony + 해요 (hada form) + past tense
+  const options = shuffle(
+    t === 'hada'   ? ['해요', '아요', '어요', '했어요'] :
+    t === 'bright' ? ['아요', '어요', '해요', '았어요'] :
+                     ['어요', '아요', '해요', '었어요']
+  )
+  return {
+    category: 'Verb Form',
+    question: `Choose the correct polite present ending:\n\n${stem}___`,
+    translation: `"${word.korean}" = ${word.english}`,
+    answer,
+    options,
+    explanation:
+      t === 'hada'
+        ? `"${word.korean}" is a 하다 verb → 해요.`
+        : `Stem "${stem}" has a ${t === 'bright' ? 'bright vowel (ㅏ/ㅗ) → 아요' : 'dark vowel → 어요'}.`,
+  }
+}
+
+function makeVerbPastQ(word) {
+  const t    = stemVowelType(word.korean)
+  const stem = word.korean.slice(0, -1)
+  const answer = pastEnd(word.korean)
+  const options = shuffle(
+    t === 'hada'   ? ['했어요', '았어요', '었어요', '해요'] :
+    t === 'bright' ? ['았어요', '었어요', '했어요', '아요'] :
+                     ['었어요', '았어요', '했어요', '어요']
+  )
+  return {
+    category: 'Verb Form',
+    question: `Choose the correct past tense ending:\n\n${stem}___`,
+    translation: `"${word.korean}" = ${word.english} (past tense)`,
+    answer,
+    options,
+    explanation:
+      t === 'hada'
+        ? `"${word.korean}" is a 하다 verb → 했어요.`
+        : `Stem "${stem}" has a ${t === 'bright' ? 'bright vowel → 았어요' : 'dark vowel → 었어요'}.`,
+  }
+}
+
+function makeNegQ(word) {
+  const stem   = word.korean.slice(0, -1)
+  const pres   = presentEnd(word.korean)
+  const t      = stemVowelType(word.korean)
+  const wrongH = t === 'bright' ? `안 ${stem}어요` : `안 ${stem}아요`
+  const answer = `안 ${stem}${pres}`
+  return {
+    category: 'Negation',
+    question: `Choose the correct short negation (will not / does not):\n\n저는 ___`,
+    translation: `"${word.korean}" = ${word.english} · "I don't ${word.english}"`,
+    answer,
+    options: shuffle([
+      answer,
+      `${stem}${pres} 안`,   // wrong word order
+      `못 ${stem}${pres}`,   // wrong type (can't vs won't)
+      wrongH,                // wrong vowel harmony
+    ]),
+    explanation: `Short negation: 안 comes before the verb. "안 ${stem}${pres}" = don't/won't ${word.english}. (못 = cannot; 안 = will not / does not)`,
+  }
+}
+
+function makeConnQ(word) {
+  const stem = word.korean.slice(0, -1)
+  const t    = stemVowelType(word.korean)
+  // -아서/어서 suffix (because/and-then, different from sequential -고)
+  const causeSuffix = t === 'hada' ? '해서' : t === 'bright' ? '아서' : '어서'
+  // -(으)면 suffix
+  const last    = lastKoreanChar(stem)
+  const condSuffix = last && hasJongseong(last) ? '으면' : '면'
+  return {
+    category: 'Connectives',
+    question: `Choose the sequential connector ("and then") for:\n\n${stem}___`,
+    translation: `"${word.korean}" = ${word.english}`,
+    answer: '고',
+    options: shuffle(['고', causeSuffix, '지만', condSuffix]),
+    explanation: `Sequential -고 ("and then") attaches directly to the stem with no vowel harmony: ${stem}고. Unlike ${causeSuffix} (because/so) or 지만 (but).`,
+  }
+}
+
+// ── Irregular verb conjugation ────────────────────────────────────────────────
+// Precomputed correct forms for the most common TOPIK irregular verbs.
+// Regular generators (makeVerbPresentQ / Past) exclude these via isConjugable().
+const IRREGULAR_MAP = {
+  // ── ㅂ irregular: final ㅂ → 우 before 아/어, then contracts ──────────────
+  '덥다':     { pres: '더워요',     past: '더웠어요',    rule: 'ㅂ' },
+  '춥다':     { pres: '추워요',     past: '추웠어요',    rule: 'ㅂ' },
+  '어렵다':   { pres: '어려워요',   past: '어려웠어요',  rule: 'ㅂ' },
+  '쉽다':     { pres: '쉬워요',     past: '쉬웠어요',    rule: 'ㅂ' },
+  '가깝다':   { pres: '가까워요',   past: '가까웠어요',  rule: 'ㅂ' },
+  '아름답다': { pres: '아름다워요', past: '아름다웠어요', rule: 'ㅂ' },
+  '무겁다':   { pres: '무거워요',   past: '무거웠어요',  rule: 'ㅂ' },
+  '가볍다':   { pres: '가벼워요',   past: '가벼웠어요',  rule: 'ㅂ' },
+  '고맙다':   { pres: '고마워요',   past: '고마웠어요',  rule: 'ㅂ' },
+  '맵다':     { pres: '매워요',     past: '매웠어요',    rule: 'ㅂ' },
+  '뜨겁다':   { pres: '뜨거워요',   past: '뜨거웠어요',  rule: 'ㅂ' },
+  '즐겁다':   { pres: '즐거워요',   past: '즐거웠어요',  rule: 'ㅂ' },
+  '귀엽다':   { pres: '귀여워요',   past: '귀여웠어요',  rule: 'ㅂ' },
+  '차갑다':   { pres: '차가워요',   past: '차가웠어요',  rule: 'ㅂ' },
+  '넓다':     { pres: '넓어요',     past: '넓었어요',    rule: 'ㅂ' }, // regular ㅂ — included for contrast
+  // ── ㄷ irregular: final ㄷ → ㄹ before vowel endings ─────────────────────
+  '듣다':     { pres: '들어요',     past: '들었어요',    rule: 'ㄷ' },
+  '걷다':     { pres: '걸어요',     past: '걸었어요',    rule: 'ㄷ' },
+  '묻다':     { pres: '물어요',     past: '물었어요',    rule: 'ㄷ' }, // 묻다 = to ask (ㄷ irregular)
+  // ── 르 irregular: 르 → ㄹ added to prev syllable + 라/러요 ───────────────
+  '모르다':   { pres: '몰라요',     past: '몰랐어요',    rule: '르' },
+  '부르다':   { pres: '불러요',     past: '불렀어요',    rule: '르' },
+  '다르다':   { pres: '달라요',     past: '달랐어요',    rule: '르' },
+  '빠르다':   { pres: '빨라요',     past: '빨랐어요',    rule: '르' },
+  '고르다':   { pres: '골라요',     past: '골랐어요',    rule: '르' },
+  '흐르다':   { pres: '흘러요',     past: '흘렀어요',    rule: '르' },
+  '오르다':   { pres: '올라요',     past: '올랐어요',    rule: '르' },
+  '자르다':   { pres: '잘라요',     past: '잘랐어요',    rule: '르' },
+  // ── ㅎ irregular adjectives: ㅎ drops + remaining vowels contract ─────────
+  '파랗다':   { pres: '파래요',     past: '파랬어요',    rule: 'ㅎ' },
+  '노랗다':   { pres: '노래요',     past: '노랬어요',    rule: 'ㅎ' },
+  '빨갛다':   { pres: '빨개요',     past: '빨갰어요',    rule: 'ㅎ' },
+  '하얗다':   { pres: '하얘요',     past: '하얬어요',    rule: 'ㅎ' },
+  '까맣다':   { pres: '까매요',     past: '까맸어요',    rule: 'ㅎ' },
+  // ── 으 irregular: ㅡ drops before 아/어, harmony from preceding syllable ──
+  '바쁘다':   { pres: '바빠요',     past: '바빴어요',    rule: '으' },
+  '예쁘다':   { pres: '예뻐요',     past: '예뻤어요',    rule: '으' },
+  '크다':     { pres: '커요',       past: '컸어요',      rule: '으' },
+  '아프다':   { pres: '아파요',     past: '아팠어요',    rule: '으' },
+  '기쁘다':   { pres: '기뻐요',     past: '기뻤어요',    rule: '으' },
+  '슬프다':   { pres: '슬퍼요',     past: '슬펐어요',    rule: '으' },
+  '나쁘다':   { pres: '나빠요',     past: '나빴어요',    rule: '으' },
+}
+
+const IRREGULAR_RULE_TEXT = {
+  'ㅂ': 'ㅂ irregular (ㅂ 불규칙): final ㅂ → 우 before 아/어, then contracts (e.g. 덥+어요 → 더우어요 → 더워요).',
+  'ㄷ': 'ㄷ irregular (ㄷ 불규칙): final ㄷ → ㄹ before vowel endings (e.g. 듣+어요 → 들어요).',
+  '르': '르 irregular (르 불규칙): 르 drops, ㄹ attaches to the previous syllable, then 라/러요 (e.g. 모르 → 몰라요).',
+  'ㅎ': 'ㅎ irregular (ㅎ 불규칙): final ㅎ drops before 아/어 and the vowels contract (e.g. 파랗+아요 → 파래요).',
+  '으': '으 irregular (으 불규칙): ㅡ drops before 아/어, then harmony is determined by the preceding syllable (e.g. 바쁘 → 바빠요).',
+}
+
+function makeIrregularQ(word) {
+  const entry = IRREGULAR_MAP[word.korean]
+  if (!entry) return null
+  const { pres, past, rule } = entry
+  const stem = word.korean.slice(0, -1)
+  // Ask present or past randomly for variety
+  const askPast = Math.random() > 0.5
+  const answer  = askPast ? past : pres
+  const tense   = askPast ? 'past' : 'present'
+
+  // Distractors: naive (stem+아/어요 without applying the rule) + wrong tense
+  const naiveDark   = `${stem}어요`
+  const naiveBright = `${stem}아요`
+  const wrongTense  = askPast ? pres : past   // correct form but wrong tense
+
+  // For ㅎ, naive form keeps ㅎ; show both naive options + wrong tense
+  const rawOptions = rule === 'ㅎ'
+    ? [answer, `${stem}아요`, `${stem}어요`, wrongTense]
+    : [answer, naiveDark, naiveBright, wrongTense]
+
+  const options = shuffle([...new Set(rawOptions)].slice(0, 4))
+
+  return {
+    category: 'IrregularVerbs',
+    question: `${rule} irregular — choose the correct polite ${tense} form:\n\n${word.korean}`,
+    translation: `"${word.korean}" = ${word.english}`,
+    answer,
+    options,
+    explanation: `${IRREGULAR_RULE_TEXT[rule]} "${word.korean}" → ${pres} / ${past}.`,
+  }
+}
+
 // ── Build question pool ──────────────────────────────────────────────────────
-// All particle/copula generators require nouns — verbs/adjectives end in 다.
+// pool: 'noun' → particle/copula generators; 'verb' → conjugation generators
 const DYNAMIC_GENERATORS = [
-  { cat: 'TopicMarker',   fn: makeTopicQ,   nounsOnly: true  },
-  { cat: 'ObjectMarker',  fn: makeObjectQ,  nounsOnly: true  },
-  { cat: 'SubjectMarker', fn: makeSubjectQ, nounsOnly: true  },
-  { cat: 'Copula',        fn: makeCopulaQ,  nounsOnly: true  },
-  { cat: 'ConjParticle',  fn: makeConjQ,    nounsOnly: true  },
-  { cat: 'LocationParticle', fn: makeDirQ,  nounsOnly: true  },
+  { cat: 'TopicMarker',      fn: makeTopicQ,      pool: 'noun' },
+  { cat: 'ObjectMarker',     fn: makeObjectQ,      pool: 'noun' },
+  { cat: 'SubjectMarker',    fn: makeSubjectQ,     pool: 'noun' },
+  { cat: 'Copula',           fn: makeCopulaQ,      pool: 'noun' },
+  { cat: 'ConjParticle',     fn: makeConjQ,        pool: 'noun' },
+  { cat: 'LocationParticle', fn: makeDirQ,         pool: 'noun' },
+  { cat: 'Verb Form',        fn: makeVerbPresentQ, pool: 'verb' },
+  { cat: 'Verb Form',        fn: makeVerbPastQ,    pool: 'verb' },
+  { cat: 'Negation',         fn: makeNegQ,         pool: 'verb'      },
+  { cat: 'Connectives',      fn: makeConnQ,        pool: 'any'       }, // -고 works for all verbs
+  { cat: 'IrregularVerbs',   fn: makeIrregularQ,   pool: 'irregular' }, // ㅂ/ㄷ/르/ㅎ/으 irregulars
 ]
 
 function buildQuestions(practicedWords, allWords, selectedCategories, staticQuestions) {
   const hasFilter = selectedCategories instanceof Set && selectedCategories.size > 0
   const rawPool   = practicedWords.length > 0 ? practicedWords : allWords.slice(0, 30)
-  // Particle generators only make sense with nouns; fall back to full pool if too few.
-  const nounPool  = rawPool.filter(isNoun).length >= 5 ? rawPool.filter(isNoun) : rawPool
+
+  // Noun pool: words usable in particle/copula questions
+  const rawNouns = rawPool.filter(isNoun)
+  const nounPool = rawNouns.length >= 5 ? rawNouns : rawPool.filter(w => !w.korean.trimEnd().endsWith('다'))
+
+  // Verb pool: only conjugation-safe (regular) verbs
+  const rawVerbs  = rawPool.filter(isVerb)
+  const safeVerbs = rawVerbs.filter(isConjugable)
+  const verbPool  = safeVerbs.length >= 3 ? safeVerbs : rawVerbs
+
+  // Irregular pool: words the player has practiced that are in IRREGULAR_MAP
+  // Fall back to ALL known irregular words from allWords if none practiced yet
+  const irregularPool = (() => {
+    const practiced = rawPool.filter(w => IRREGULAR_MAP[w.korean])
+    if (practiced.length >= 2) return practiced
+    return allWords.filter(w => IRREGULAR_MAP[w.korean])
+  })()
+
+  const getPool = (gen) =>
+    gen.pool === 'noun'      ? nounPool :
+    gen.pool === 'verb'      ? verbPool :
+    gen.pool === 'irregular' ? irregularPool :
+    rawPool  // 'any'
+
+  const makeDynamic = (eligible, count) => {
+    if (!eligible.length) return []
+    const gens = shuffle([...eligible])
+    const out  = []
+    for (let i = 0; i < count; i++) {
+      const gen  = gens[i % gens.length]
+      const pool = getPool(gen)
+      if (!pool.length) continue
+      const word = shuffle(pool)[0]
+      const q    = gen.fn(word)
+      if (q) out.push(q)
+    }
+    return out
+  }
 
   if (hasFilter) {
     const filtered = staticQuestions.filter(q => selectedCategories.has(q.category))
     const eligible = DYNAMIC_GENERATORS.filter(g => selectedCategories.has(g.cat))
-    const dynamic  = []
-    if (eligible.length > 0) {
-      for (const word of shuffle(nounPool).slice(0, 15)) {
-        const gen = shuffle(eligible)[0]
-        const pool = gen.nounsOnly ? nounPool : rawPool
-        const q    = gen.fn(shuffle(pool)[0] ?? word)
-        if (q) dynamic.push(q)
-      }
-    }
+    const dynamic  = makeDynamic(eligible, 15)
     return shuffle([...filtered, ...dynamic]).slice(0, 15)
   }
 
-  // Unfiltered (play all): mix dynamic noun-based questions with all static questions
-  const dynamic = []
-  for (const word of shuffle(nounPool).slice(0, 15)) {
-    const gen = shuffle(DYNAMIC_GENERATORS)[0]
-    const q   = gen.fn(word)
-    if (q) dynamic.push(q)
-  }
+  // Unfiltered: mix dynamic questions (noun + verb) with static questions
+  const dynamic = makeDynamic(DYNAMIC_GENERATORS, 15)
   return shuffle([...dynamic, ...shuffle(staticQuestions).slice(0, 12)]).slice(0, 10)
 }
 
@@ -194,6 +437,7 @@ const categoryColors = {
   'Inference':       'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
   'Formal':          'bg-slate-500/20 text-slate-300 border-slate-500/30',
   'Honorifics':      'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+  'IrregularVerbs':  'bg-orange-500/20 text-orange-300 border-orange-500/30',
 }
 
 export default function GrammarGame({ wordStats, allWords, onClose, onComplete, selectedCategories, staticQuestions }) {

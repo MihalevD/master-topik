@@ -28,7 +28,7 @@ export default function ProfileView({ totalCompleted, streak, hardWords, accurac
             </h3>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-gray-800/80 rounded-xl p-4 text-center border border-gray-700/50">
-                <p className="text-xs text-gray-500 mb-1">Words Mastered</p>
+                <p className="text-xs text-gray-500 mb-1">Words Learned</p>
                 <p className="text-3xl font-bold text-purple-400">{totalCompleted}</p>
               </div>
               <div className="bg-gray-800/80 rounded-xl p-4 text-center border border-gray-700/50">

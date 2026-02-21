@@ -150,10 +150,12 @@ export default function NavBar() {
               </button>
             ))}
             <button
-              onClick={() => nav('/review-images')}
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium cursor-pointer w-full text-left bg-yellow-900/30 text-yellow-400 border border-yellow-800/50 mt-1"
+              onClick={() => nav('/admin/images')}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors cursor-pointer w-full text-left ${
+                isActive('/admin/images') ? 'bg-purple-600 text-white' : 'text-gray-300 hover:bg-gray-800'
+              }`}
             >
-              🖼 Image Test
+              <SettingsIcon size={18} />Admin
             </button>
 
             <div className="border-t border-gray-800 my-3" />
@@ -207,8 +209,8 @@ export default function NavBar() {
               <button onClick={() => nav('/alphabet')} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg ${isActive('/alphabet') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
                 <Languages size={18} />Hangul
               </button>
-              <button onClick={() => nav('/review-images')} className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-yellow-900/50 text-yellow-400 border border-yellow-700/50 transition-colors cursor-pointer">
-                🖼 Test
+              <button onClick={() => nav('/admin/images')} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg ${isActive('/admin/images') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
+                <SettingsIcon size={18} />Admin
               </button>
             </div>
 

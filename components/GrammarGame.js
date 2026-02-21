@@ -8,6 +8,11 @@ function hasJongseong(char) {
   const c = char.charCodeAt(0)
   return c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 !== 0
 }
+function jongseongCode(char) {
+  const c = char.charCodeAt(0)
+  if (c < 0xAC00 || c > 0xD7A3) return -1
+  return (c - 0xAC00) % 28  // 0 = no jongseong, 8 = ㄹ
+}
 function lastKoreanChar(str) {
   for (let i = str.length - 1; i >= 0; i--) {
     const c = str.charCodeAt(i)
@@ -15,6 +20,9 @@ function lastKoreanChar(str) {
   }
   return null
 }
+// Heuristic: Korean verbs/adjectives end in 다 in dictionary form; nouns don't.
+// Particle generators only make sense attached to nouns.
+const isNoun = (w) => !w.korean.trimEnd().endsWith('다')
 function shuffle(arr) {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
@@ -32,8 +40,8 @@ function makeTopicQ(word) {
   const answer = hasC ? '은' : '는'
   return {
     category: 'TopicMarker',
-    question: `Choose the correct topic marker (은/는):\n\n${word.korean}___ ${word.english}이에요.`,
-    translation: `"${word.korean}" = ${word.english}`,
+    question: `Choose the correct topic marker (은/는):\n\n${word.korean}___ 좋아요.`,
+    translation: `"${word.korean}" = ${word.english} · "${word.korean}___ 좋아요" = [The] ${word.english} is good.`,
     answer,
     options: shuffle([answer, hasC ? '는' : '은', '도', '만']),
     explanation: `"${word.korean}" ends with ${hasC ? 'a consonant → 은' : 'a vowel → 는'}. Topic markers: 은 (after consonant), 는 (after vowel).`,
@@ -85,38 +93,76 @@ function makeCopulaQ(word) {
   }
 }
 
+function makeConjQ(word) {
+  const last = lastKoreanChar(word.korean)
+  if (!last) return null
+  const hasC = hasJongseong(last)
+  const answer = hasC ? '과' : '와'
+  return {
+    category: 'ConjParticle',
+    question: `Choose the correct conjunction particle (와/과):\n\n${word.korean}___ 친구를 만났어요.`,
+    translation: `"${word.korean}" = ${word.english} · "I met ${word.english} and a friend."`,
+    answer,
+    options: shuffle([answer, hasC ? '와' : '과', '하고', '에서']),
+    explanation: `"${word.korean}" ends with ${hasC ? 'a consonant → 과' : 'a vowel → 와'}. Conjunctive particles: 과 (after consonant), 와 (after vowel). Casual spoken form: 하고.`,
+  }
+}
+
+function makeDirQ(word) {
+  const last = lastKoreanChar(word.korean)
+  if (!last) return null
+  const jCode = jongseongCode(last)
+  // 으로 after consonant (except ㄹ = jongseong code 8), 로 after vowel or ㄹ
+  const hasC = hasJongseong(last)
+  const isRieul = jCode === 8
+  const answer = (hasC && !isRieul) ? '으로' : '로'
+  return {
+    category: 'LocationParticle',
+    question: `Choose the correct direction/means particle (으로/로):\n\n${word.korean}___ 가세요.`,
+    translation: `"${word.korean}" = ${word.english} · "Please go toward / by ${word.english}."`,
+    answer,
+    options: shuffle([answer, hasC && !isRieul ? '로' : '으로', '에서', '에']),
+    explanation: `"${word.korean}" ends with ${isRieul ? 'ㄹ → 로' : hasC ? 'a consonant (not ㄹ) → 으로' : 'a vowel → 로'}. 으로/로 marks direction or means of transport.`,
+  }
+}
 
 // ── Build question pool ──────────────────────────────────────────────────────
+// All particle/copula generators require nouns — verbs/adjectives end in 다.
 const DYNAMIC_GENERATORS = [
-  { cat: 'TopicMarker',  fn: makeTopicQ  },
-  { cat: 'ObjectMarker', fn: makeObjectQ },
-  { cat: 'SubjectMarker',fn: makeSubjectQ },
-  { cat: 'Copula',       fn: makeCopulaQ },
+  { cat: 'TopicMarker',   fn: makeTopicQ,   nounsOnly: true  },
+  { cat: 'ObjectMarker',  fn: makeObjectQ,  nounsOnly: true  },
+  { cat: 'SubjectMarker', fn: makeSubjectQ, nounsOnly: true  },
+  { cat: 'Copula',        fn: makeCopulaQ,  nounsOnly: true  },
+  { cat: 'ConjParticle',  fn: makeConjQ,    nounsOnly: true  },
+  { cat: 'LocationParticle', fn: makeDirQ,  nounsOnly: true  },
 ]
 
 function buildQuestions(practicedWords, allWords, selectedCategories, staticQuestions) {
   const hasFilter = selectedCategories instanceof Set && selectedCategories.size > 0
-  const pool = practicedWords.length > 0 ? practicedWords : allWords.slice(0, 30)
+  const rawPool   = practicedWords.length > 0 ? practicedWords : allWords.slice(0, 30)
+  // Particle generators only make sense with nouns; fall back to full pool if too few.
+  const nounPool  = rawPool.filter(isNoun).length >= 5 ? rawPool.filter(isNoun) : rawPool
 
   if (hasFilter) {
-    // Filtered: static questions matching selected categories + matching dynamic generators
     const filtered = staticQuestions.filter(q => selectedCategories.has(q.category))
     const eligible = DYNAMIC_GENERATORS.filter(g => selectedCategories.has(g.cat))
-    const dynamic = []
+    const dynamic  = []
     if (eligible.length > 0) {
-      for (const word of shuffle(pool).slice(0, 15)) {
-        const { fn } = shuffle(eligible)[0]
-        const q = fn(word)
+      for (const word of shuffle(nounPool).slice(0, 15)) {
+        const gen = shuffle(eligible)[0]
+        const pool = gen.nounsOnly ? nounPool : rawPool
+        const q    = gen.fn(shuffle(pool)[0] ?? word)
         if (q) dynamic.push(q)
       }
     }
     return shuffle([...filtered, ...dynamic]).slice(0, 15)
   }
 
-  // Unfiltered (play all): mix dynamic vocab questions with all static questions
+  // Unfiltered (play all): mix dynamic noun-based questions with all static questions
   const dynamic = []
-  for (const word of shuffle(pool).slice(0, 15)) {
-    const q = shuffle(DYNAMIC_GENERATORS)[0].fn(word)
+  for (const word of shuffle(nounPool).slice(0, 15)) {
+    const gen = shuffle(DYNAMIC_GENERATORS)[0]
+    const q   = gen.fn(word)
     if (q) dynamic.push(q)
   }
   return shuffle([...dynamic, ...shuffle(staticQuestions).slice(0, 12)]).slice(0, 10)
@@ -150,7 +196,7 @@ const categoryColors = {
   'Honorifics':      'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
 }
 
-export default function GrammarGame({ wordStats, allWords, onClose, selectedCategories, staticQuestions }) {
+export default function GrammarGame({ wordStats, allWords, onClose, onComplete, selectedCategories, staticQuestions }) {
   const practicedWords = useMemo(() => {
     const keys = Object.keys(wordStats || {})
     return allWords.filter(w => keys.includes(w.korean))
@@ -161,6 +207,8 @@ export default function GrammarGame({ wordStats, allWords, onClose, selectedCate
   const [selected, setSelected]   = useState(null)
   const [score, setScore]         = useState(0)
   const [done, setDone]           = useState(false)
+  const scoreRef   = useRef(0)
+  const answersRef = useRef([]) // { category, correct }[]
 
   const q = questions[index]
   const answered = selected !== null
@@ -173,12 +221,18 @@ export default function GrammarGame({ wordStats, allWords, onClose, selectedCate
 
   function choose(opt) {
     if (answered) return
+    const correct = opt === q.answer
+    answersRef.current.push({ category: q.category, correct })
     setSelected(opt)
-    if (opt === q.answer) setScore(s => s + 1)
+    if (correct) {
+      setScore(s => s + 1)
+      scoreRef.current++
+    }
   }
 
   function next() {
     if (index + 1 >= questions.length) {
+      onComplete?.(scoreRef.current, questions.length, answersRef.current)
       setDone(true)
     } else {
       setIndex(i => i + 1)
@@ -187,11 +241,13 @@ export default function GrammarGame({ wordStats, allWords, onClose, selectedCate
   }
 
   function restart() {
+    answersRef.current = []
     setQuestions(buildQuestions(practicedWords, allWords, selectedCategories, staticQuestions))
     setIndex(0)
     setSelected(null)
     setScore(0)
     setDone(false)
+    scoreRef.current = 0
   }
 
   // ── Not enough words screen ──
@@ -275,12 +331,37 @@ export default function GrammarGame({ wordStats, allWords, onClose, selectedCate
         <div className="max-w-xl mx-auto space-y-4">
           {/* Question */}
           <div className="bg-gray-800/80 rounded-2xl border border-gray-700/50 p-5 shadow-xl">
-            {q.question.split('\n\n').map((part, i) => (
-              <p key={i} className={i === 0 ? 'text-gray-300 text-sm mb-3' : 'text-white text-xl md:text-2xl font-bold'}>{part}</p>
-            ))}
-            {q.translation && (
-              <p className="text-gray-500 text-sm italic mt-2">{q.translation}</p>
-            )}
+            {(() => {
+              // Format 1 — dynamic questions: "Instruction\n\nKorean sentence"
+              if (q.question.includes('\n\n')) {
+                const [instruction, sentence] = q.question.split('\n\n')
+                return (
+                  <>
+                    <p className="text-gray-400 text-sm mb-3">{instruction}</p>
+                    <p className="text-white text-2xl md:text-3xl font-bold tracking-wide">{sentence}</p>
+                    {q.translation && <p className="text-gray-500 text-sm italic mt-3">{q.translation}</p>}
+                  </>
+                )
+              }
+              // Format 2 — static fill-in: 'Fill in: "Korean sentence" (English translation)'
+              const fillMatch = q.question.match(/^(Fill in[^:]*:)\s*"([^"]+)"\s*(\([^)]+\))?$/)
+              if (fillMatch) {
+                return (
+                  <>
+                    <p className="text-gray-400 text-sm mb-3">{fillMatch[1]}</p>
+                    <p className="text-white text-2xl md:text-3xl font-bold tracking-wide">{fillMatch[2]}</p>
+                    {fillMatch[3] && <p className="text-gray-500 text-sm italic mt-3">{fillMatch[3]}</p>}
+                  </>
+                )
+              }
+              // Format 3 — other static questions: show as large primary text
+              return (
+                <>
+                  <p className="text-white text-xl md:text-2xl font-bold">{q.question}</p>
+                  {q.translation && <p className="text-gray-500 text-sm italic mt-3">{q.translation}</p>}
+                </>
+              )
+            })()}
           </div>
 
           {/* Options — 2×2 grid */}

@@ -1,7 +1,54 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Zap, Check } from 'lucide-react'
+import { ChevronDown, ChevronRight, Zap, Check, Star } from 'lucide-react'
+
+const MIN_RULE_Q = 3
+const MIN_PERFECT = 2
+
+function RuleCircle({ stat }) {
+  const r = 8
+  const circ = 2 * Math.PI * r
+
+  // Mastered: 2 perfect game sessions → gold star badge
+  if ((stat?.perfectGames || 0) >= MIN_PERFECT) {
+    return (
+      <div
+        className="flex-shrink-0 w-5 h-5 rounded-full bg-yellow-500/20 flex items-center justify-center"
+        title={`Mastered! ${stat.perfectGames} perfect games`}
+      >
+        <Star size={11} className="text-yellow-400 fill-yellow-400" />
+      </div>
+    )
+  }
+
+  // Not enough data yet → empty grey ring
+  if (!stat || stat.total < MIN_RULE_Q) {
+    return (
+      <svg width="20" height="20" viewBox="0 0 20 20" className="flex-shrink-0" title="Play a quiz to track this rule">
+        <circle cx="10" cy="10" r={r} fill="none" stroke="#374151" strokeWidth="2.5" />
+      </svg>
+    )
+  }
+
+  // In progress → partial ring coloured by accuracy
+  const acc = stat.correct / stat.total
+  const dash = circ * acc
+  const color = acc >= 0.8 ? '#4ade80' : acc >= 0.5 ? '#facc15' : '#f87171'
+  const pct = Math.round(acc * 100)
+  return (
+    <div className="relative flex-shrink-0" style={{ width: 20, height: 20 }} title={`${pct}% accuracy · ${stat.perfectGames || 0}/2 perfect games`}>
+      <svg width="20" height="20" viewBox="0 0 20 20" style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx="10" cy="10" r={r} fill="none" stroke="#374151" strokeWidth="2.5" />
+        <circle cx="10" cy="10" r={r} fill="none" stroke={color} strokeWidth="2.5"
+          strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-white font-bold" style={{ fontSize: '5px' }}>
+        {pct}
+      </span>
+    </div>
+  )
+}
 
 const colorMap = {
   purple: { badge: 'bg-purple-500/20 text-purple-300 border-purple-500/30', dot: 'bg-purple-500', header: 'text-purple-300' },
@@ -21,7 +68,7 @@ const colorMap = {
   slate:  { badge: 'bg-slate-500/20 text-slate-300 border-slate-500/30',   dot: 'bg-slate-400',  header: 'text-slate-300'  },
 }
 
-export default function GrammarView({ grammarData, onBack, onStartGame }) {
+export default function GrammarView({ grammarData, onBack, onStartGame, ruleStats = {} }) {
   const [openCategories, setOpenCategories] = useState({ 0: true })
   const [openRules, setOpenRules] = useState({})
   const [selectedRules, setSelectedRules] = useState(() => new Set())
@@ -105,6 +152,8 @@ export default function GrammarView({ grammarData, onBack, onStartGame }) {
                               {ri + 1}
                             </span>
                             <span className="text-white text-sm font-semibold flex-1 min-w-0 truncate">{rule.title}</span>
+
+                            <RuleCircle stat={ruleStats[rule.gameCategory]} />
 
                             <button
                               onClick={(e) => { e.stopPropagation(); toggleRuleSelection(key) }}

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { Sparkles, Trophy, Flame, LogOut, Settings as SettingsIcon, BookMarked, Languages, X, Lock, Check, Menu } from 'lucide-react'
+import { Sparkles, Trophy, Flame, LogOut, Settings as SettingsIcon, BookMarked, Languages, X, Lock, Check, Menu, TrendingUp } from 'lucide-react'
 import { ranks } from '@/lib/ranks'
 import { useApp } from '@/app/providers'
 import { APP_NAME, RANK_META, RANK_COLOR_MAP, getAchievements } from '@/lib/constants'
@@ -138,6 +138,7 @@ export default function NavBar() {
             {[
               { path: '/dictionary', icon: <BookMarked size={18} />, label: 'Dictionary' },
               { path: '/alphabet', icon: <Languages size={18} />, label: 'Hangul' },
+              { path: '/readiness', icon: <TrendingUp size={18} />, label: 'TOPIK Level' },
             ].map(({ path, icon, label }) => (
               <button
                 key={path}
@@ -208,6 +209,9 @@ export default function NavBar() {
               </button>
               <button onClick={() => nav('/alphabet')} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg ${isActive('/alphabet') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
                 <Languages size={18} />Hangul
+              </button>
+              <button onClick={() => nav('/readiness')} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg ${isActive('/readiness') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
+                <TrendingUp size={18} />Progress
               </button>
               <button onClick={() => nav('/admin/images')} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg ${isActive('/admin/images') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
                 <SettingsIcon size={18} />Admin

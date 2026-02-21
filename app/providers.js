@@ -1,10 +1,32 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, useRef } from 'react'
-import { supabase, saveWordProgress, saveUserStats, getUserStats, saveDailyChallenge, getDailyChallenge } from '@/lib/supabase'
+import { supabase, saveWordProgress, saveUserStats, getUserStats, saveDailyChallenge, getDailyChallenge, saveGrammarStats } from '@/lib/supabase'
 import { getWords } from '@/lib/words'
 import { ranks } from '@/lib/ranks'
 import { TOPIKII_UNLOCK_THRESHOLD, DEFAULT_DAILY_CHALLENGE, REVIEW_DIFFICULT_COUNT } from '@/lib/constants'
+
+// ── SRS (SM-2 inspired) ───────────────────────────────────────────────────────
+// Returns { interval (days), nextReview (ms timestamp) } after each answer
+function computeSRS(stats, isCorrect) {
+  const accuracy = (stats.correct + (isCorrect ? 1 : 0)) / (stats.attempts + 1)
+  const easeFactor = Math.max(1.3, 2.5 + (accuracy - 0.6) * 3)
+  const prevInterval = stats.interval || 0
+
+  let interval
+  if (!isCorrect) {
+    interval = 1                                            // wrong → tomorrow
+  } else if (stats.correct === 0) {
+    interval = 1                                            // first correct → 1 day
+  } else if (stats.correct === 1) {
+    interval = 6                                            // second correct → 6 days
+  } else {
+    const base = prevInterval > 0 ? prevInterval : 6
+    interval = Math.max(1, Math.min(180, Math.round(base * easeFactor)))
+  }
+
+  return { interval, nextReview: Date.now() + interval * 24 * 60 * 60 * 1000 }
+}
 
 const AppContext = createContext(null)
 
@@ -24,6 +46,7 @@ export function AppProvider({ children }) {
   })
   const [streak, setStreak] = useState(0)
   const [wordStats, setWordStats] = useState({})
+  const [grammarStats, setGrammarStats] = useState({})
   const [reviewMode, setReviewMode] = useState(false)
   const [reverseMode, setReverseMode] = useState(false)
   const [dailyCorrect, setDailyCorrect] = useState(0)
@@ -49,25 +72,6 @@ export function AppProvider({ children }) {
     setDailyChallengeState(val)
   }
 
-  const calculateWordPriority = (word, freshWordStats) => {
-    const ws = freshWordStats ?? wordStats
-    const stats = ws[word.korean] || { attempts: 0, correct: 0, hintsUsed: 0, examplesUsed: 0, lastSeen: 0 }
-    if (stats.attempts === 0) return 60
-    const accuracy = stats.correct / stats.attempts
-    const daysSinceLastSeen = (Date.now() - (stats.lastSeen || 0)) / (1000 * 60 * 60 * 24)
-    const hintRate = stats.hintsUsed / stats.attempts
-    const exampleRate = stats.examplesUsed / stats.attempts
-    const adjustedAccuracy = Math.max(0, accuracy - hintRate * 0.25 - exampleRate * 0.1)
-    const easeFactor = Math.max(1.3, 2.5 + (adjustedAccuracy - 0.6) * 3)
-    let interval
-    if (stats.correct <= 1) interval = 1
-    else if (stats.correct === 2) interval = 6
-    else interval = Math.min(30, Math.round(6 * Math.pow(easeFactor, stats.correct - 2)))
-    if (adjustedAccuracy < 0.6) interval = 1
-    if (daysSinceLastSeen < interval) return (1 - adjustedAccuracy) * 10
-    const overdueRatio = Math.min(daysSinceLastSeen / Math.max(interval, 1), 3)
-    return (1 - adjustedAccuracy) * 100 + overdueRatio * 25
-  }
 
   const generateDailyWords = async (freshWordStats, userId) => {
     if (wordsGeneratedRef.current && dailyWords.length > 0) return
@@ -83,12 +87,29 @@ export function AppProvider({ children }) {
       }
     }
     const dc = typeof window !== 'undefined' ? Number(localStorage.getItem('dailyChallenge') || DEFAULT_DAILY_CHALLENGE) : DEFAULT_DAILY_CHALLENGE
-    const sorted = [...availableWords].sort((a, b) => calculateWordPriority(b, freshWordStats) - calculateWordPriority(a, freshWordStats))
+    const ws  = freshWordStats ?? wordStats
+    const now = Date.now()
+
+    // Bucket words into: overdue reviews | new (never seen) | future (not due yet)
+    const dueWords    = []
+    const newWords    = []
+    const futureWords = []
+    for (const word of availableWords) {
+      const s = ws[word.korean]
+      if (!s || s.attempts === 0)              newWords.push(word)
+      else if (!s.nextReview || s.nextReview <= now) dueWords.push(word)
+      else                                     futureWords.push(word)
+    }
+
+    // Most overdue first → new words random → soonest-due next
+    dueWords.sort((a, b)    => (ws[a.korean]?.nextReview || 0)        - (ws[b.korean]?.nextReview || 0))
+    futureWords.sort((a, b) => (ws[a.korean]?.nextReview || Infinity)  - (ws[b.korean]?.nextReview || Infinity))
+    newWords.sort(() => Math.random() - 0.5)
+
     const bufferSize = dc * 3
-    const difficultCount = Math.floor(bufferSize * 0.7)
-    const difficult = sorted.slice(0, difficultCount)
-    const random = sorted.slice(difficultCount).sort(() => Math.random() - 0.5).slice(0, bufferSize - difficultCount)
-    const selected = [...difficult, ...random].sort(() => Math.random() - 0.5)
+    const selected = [...dueWords, ...newWords, ...futureWords]
+      .slice(0, bufferSize)
+      .sort(() => Math.random() - 0.5)   // shuffle the final mix
     const uid = userId ?? userRef.current?.id
     if (uid) saveDailyChallenge(uid, selected.map(w => w.korean))
     setDailyWords(selected)
@@ -135,10 +156,15 @@ export function AppProvider({ children }) {
           freshWordStats[korean] = {
             attempts: v.a, correct: v.c,
             hintsUsed: v.h, examplesUsed: v.e,
-            lastSeen: v.t * 1000,
+            lastSeen:   v.t  * 1000,
+            nextReview: v.n  ? v.n  * 1000 : 0,
+            interval:   v.iv || 0,
           }
         }
         setWordStats(freshWordStats)
+      }
+      if (stats?.grammar_stats) {
+        setGrammarStats(stats.grammar_stats)
       }
       if (!wordsGeneratedRef.current) {
         if (savedChallenge?.word_koreans?.length > 0) {
@@ -199,13 +225,16 @@ export function AppProvider({ children }) {
   }
 
   const updateWordStats = async (word, isCorrect, usedHint, usedExample) => {
-    const stats = wordStats[word.korean] || { attempts: 0, correct: 0, hintsUsed: 0, examplesUsed: 0, lastSeen: 0 }
+    const stats = wordStats[word.korean] || { attempts: 0, correct: 0, hintsUsed: 0, examplesUsed: 0, lastSeen: 0, nextReview: 0, interval: 0 }
+    const { interval, nextReview } = computeSRS(stats, isCorrect)
     const newStats = {
-      attempts: stats.attempts + 1,
-      correct: stats.correct + (isCorrect ? 1 : 0),
-      hintsUsed: stats.hintsUsed + (usedHint ? 1 : 0),
+      attempts:     stats.attempts     + 1,
+      correct:      stats.correct      + (isCorrect   ? 1 : 0),
+      hintsUsed:    stats.hintsUsed    + (usedHint    ? 1 : 0),
       examplesUsed: stats.examplesUsed + (usedExample ? 1 : 0),
-      lastSeen: Date.now(),
+      lastSeen:  Date.now(),
+      nextReview,
+      interval,
     }
     setWordStats(prev => ({ ...prev, [word.korean]: newStats }))
     // Queue for batched save — flushes 2s after the last answer
@@ -330,6 +359,50 @@ export function AppProvider({ children }) {
 
   const getCurrentRank = () => ranks.find(r => totalCompleted >= r.min && totalCompleted <= r.max)
 
+  const saveGrammarResult = (level, correct, total, perCat = []) => {
+    const userId = userRef.current?.id
+    if (!userId) return
+    const key = level === 'II' ? 'topik_ii' : 'topik_i'
+    setGrammarStats(prev => {
+      const prevLevel = prev[key] || { correct: 0, total: 0, sessions: 0 }
+      const prevRuleStats = prev.rule_stats || {}
+      const newRuleStats = { ...prevRuleStats }
+      // Group answers by category to detect perfect sessions (all correct in one game)
+      const catSession = {}
+      for (const { category, correct: c } of perCat) {
+        if (!catSession[category]) catSession[category] = { correct: 0, total: 0 }
+        catSession[category].total++
+        if (c) catSession[category].correct++
+      }
+      for (const [category, sess] of Object.entries(catSession)) {
+        const p = newRuleStats[category] || { correct: 0, total: 0, perfectGames: 0 }
+        const perfect = sess.total > 0 && sess.correct === sess.total
+        newRuleStats[category] = {
+          correct:      p.correct + sess.correct,
+          total:        p.total   + sess.total,
+          perfectGames: (p.perfectGames || 0) + (perfect ? 1 : 0),
+        }
+      }
+      const updated = {
+        ...prev,
+        [key]: {
+          correct:  prevLevel.correct  + correct,
+          total:    prevLevel.total    + total,
+          sessions: prevLevel.sessions + 1,
+        },
+        rule_stats: newRuleStats,
+      }
+      saveGrammarStats(userId, updated)
+      return updated
+    })
+  }
+
+  // Words that have been seen at least once and whose review is overdue/today
+  const getDueCount = () => {
+    const now = Date.now()
+    return Object.values(wordStats).filter(s => s.attempts > 0 && (!s.nextReview || s.nextReview <= now)).length
+  }
+
   const getHardWords = () =>
     Object.entries(wordStats)
       .filter(([, s]) => s.attempts > 0)
@@ -361,7 +434,8 @@ export function AppProvider({ children }) {
       speakKorean, handleSignOut,
       handleNewChallenge, handleReviewDifficult, handleReturnToChallenge, completeChallengeScore,
       savedChallenge,
-      getWordDifficulty, getCurrentRank, getHardWords, getAccuracyData,
+      grammarStats, saveGrammarResult,
+      getWordDifficulty, getCurrentRank, getDueCount, getHardWords, getAccuracyData,
     }}>
       {children}
     </AppContext.Provider>

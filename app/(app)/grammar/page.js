@@ -11,7 +11,21 @@ const GrammarView = dynamic(() => import('@/components/GrammarView'))
 const GrammarGame = dynamic(() => import('@/components/GrammarGame'))
 
 export default function GrammarPage() {
-  const { wordStats } = useApp()
+  const { wordStats, saveGrammarResult, grammarStats } = useApp()
+
+  const ruleStats = grammarStats?.rule_stats || {}
+  const MIN_RULE_Q = 3
+
+  function cardStats(grammarSections, levelKey) {
+    const sessions = grammarStats?.[levelKey]?.sessions || 0
+    const totalRules = grammarSections.reduce((n, s) => n + s.rules.length, 0)
+    const practicedRules = grammarSections.reduce((n, s) =>
+      n + s.rules.filter(r => (ruleStats[r.gameCategory]?.total || 0) >= MIN_RULE_Q).length, 0)
+    return { sessions, practicedRules, totalRules }
+  }
+
+  const statsI  = cardStats(topikIGrammar,  'topik_i')
+  const statsII = cardStats(topikIIGrammar, 'topik_ii')
   const [level, setLevel]       = useState(null)   // null | 'I' | 'II'
   const [showGame, setShowGame] = useState(false)
   const [gameCats, setGameCats] = useState(null)
@@ -30,6 +44,7 @@ export default function GrammarPage() {
         wordStats={wordStats}
         allWords={allWords}
         onClose={() => setShowGame(false)}
+        onComplete={(correct, total, perCat) => saveGrammarResult(level, correct, total, perCat)}
         selectedCategories={gameCats}
         staticQuestions={staticQuestions}
       />
@@ -45,6 +60,7 @@ export default function GrammarPage() {
           setGameCats(cats)
           setShowGame(true)
         }}
+        ruleStats={grammarStats?.rule_stats || {}}
       />
     )
   }
@@ -70,7 +86,14 @@ export default function GrammarPage() {
           <div className="flex-1 min-w-0">
             <p className="text-white font-bold text-base">TOPIK I</p>
             <p className="text-gray-400 text-sm mt-0.5">Beginner — particles, verb forms, basic patterns</p>
-            <p className="text-purple-400 text-xs mt-1">{topikIGrammar.length} categories · {topikIGrammar.reduce((n, s) => n + s.rules.length, 0)} rules</p>
+            <p className="text-purple-400 text-xs mt-1">{topikIGrammar.length} categories · {statsI.totalRules} rules</p>
+            {statsI.sessions > 0 ? (
+              <p className="text-gray-500 text-xs mt-1.5">
+                {statsI.sessions} session{statsI.sessions !== 1 ? 's' : ''} · <span className="text-purple-400 font-semibold">{statsI.practicedRules}/{statsI.totalRules}</span> rules practiced
+              </p>
+            ) : (
+              <p className="text-gray-600 text-xs mt-1.5">Play a quiz to track your progress</p>
+            )}
           </div>
           <ChevronRight size={20} className="text-gray-600 group-hover:text-purple-400 transition-colors flex-shrink-0" />
         </button>
@@ -86,7 +109,14 @@ export default function GrammarPage() {
           <div className="flex-1 min-w-0">
             <p className="text-white font-bold text-base">TOPIK II</p>
             <p className="text-gray-400 text-sm mt-0.5">Intermediate/Advanced — modals, indirect speech, honorifics</p>
-            <p className="text-pink-400 text-xs mt-1">{topikIIGrammar.length} categories · {topikIIGrammar.reduce((n, s) => n + s.rules.length, 0)} rules</p>
+            <p className="text-pink-400 text-xs mt-1">{topikIIGrammar.length} categories · {statsII.totalRules} rules</p>
+            {statsII.sessions > 0 ? (
+              <p className="text-gray-500 text-xs mt-1.5">
+                {statsII.sessions} session{statsII.sessions !== 1 ? 's' : ''} · <span className="text-pink-400 font-semibold">{statsII.practicedRules}/{statsII.totalRules}</span> rules practiced
+              </p>
+            ) : (
+              <p className="text-gray-600 text-xs mt-1.5">Play a quiz to track your progress</p>
+            )}
           </div>
           <ChevronRight size={20} className="text-gray-600 group-hover:text-pink-400 transition-colors flex-shrink-0" />
         </button>

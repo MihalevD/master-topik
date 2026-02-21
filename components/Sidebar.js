@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Lock, Brain, BookOpen, Zap, Flame } from 'lucide-react'
-import { TOPIKII_UNLOCK_THRESHOLD, REVIEW_DIFFICULT_COUNT } from '@/lib/constants'
+import { TOPIKII_UNLOCK_THRESHOLD, REVIEW_DIFFICULT_COUNT, RANK_META } from '@/lib/constants'
 
 export default function Sidebar({
   dailyCorrect, dailyChallenge, score, progress,
@@ -88,7 +88,7 @@ export default function Sidebar({
         {!topikIIUnlocked && (
           <p className="flex items-center gap-1 mt-2.5 text-gray-600 text-[11px]">
             <Lock size={11} />
-            {TOPIKII_UNLOCK_THRESHOLD - totalCompleted} more to unlock TOPIK II
+            {TOPIKII_UNLOCK_THRESHOLD - totalCompleted} words more to unlock TOPIK II
           </p>
         )}
       </div>
@@ -104,7 +104,7 @@ export default function Sidebar({
             <p className="text-[10px] text-gray-500 leading-none">Score</p>
           </div>
           <div className="bg-gray-900/50 rounded-xl border border-gray-700/50 flex flex-col items-center justify-between py-2.5 px-1 min-h-[52px]">
-            <p className="text-xs font-bold text-pink-400 leading-none">{currentRank.level}</p>
+            <p className="text-xs font-bold text-pink-400 leading-none">{RANK_META[currentRank?.name]?.en || currentRank.level}</p>
             <p className="text-[10px] text-gray-500 leading-none">Rank</p>
           </div>
           <div className="bg-gray-900/50 rounded-xl border border-gray-700/50 flex flex-col items-center justify-between py-2.5 px-1 min-h-[52px]">

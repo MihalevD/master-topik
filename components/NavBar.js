@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { Sparkles, Trophy, Flame, LogOut, Settings as SettingsIcon, BookOpen, BookMarked, Languages, Library, X, Lock, Check, Menu } from 'lucide-react'
+import { Sparkles, Trophy, Flame, LogOut, Settings as SettingsIcon, BookMarked, Languages, X, Lock, Check, Menu } from 'lucide-react'
 import { ranks } from '@/lib/ranks'
 import { useApp } from '@/app/providers'
 import { APP_NAME, RANK_META, RANK_COLOR_MAP, getAchievements } from '@/lib/constants'
@@ -30,7 +30,7 @@ export default function NavBar() {
   const englishName = RANK_META[currentRank?.name]?.en || currentRank?.name || ''
   const rankColor = RANK_COLOR_MAP[currentRank?.color] || RANK_COLOR_MAP.gray
 
-  const isActive = (path) => pathname === path || (path === '/words' && pathname === '/')
+  const isActive = (path) => pathname === path
   const nav = (path) => { setShowMobileSidebar(false); router.push(path) }
 
   // Build pending achievements queue: milestones first, then rank-up
@@ -87,12 +87,12 @@ export default function NavBar() {
             <Menu size={20} />
           </button>
 
-          <div className="flex items-center gap-2">
+          <button onClick={() => nav('/home')} className="flex items-center gap-2 cursor-pointer">
             <Sparkles className="text-purple-400" size={18} />
             <h1 className="text-base font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
               {APP_NAME}
             </h1>
-          </div>
+          </button>
 
           <button
             onClick={() => hasNewAchievement ? openAchievement() : nav('/profile')}
@@ -136,8 +136,6 @@ export default function NavBar() {
           <div className="flex flex-col gap-1 p-4 flex-1 overflow-y-auto">
             <p className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider px-2 mb-1">Navigation</p>
             {[
-              { path: '/words', icon: <Library size={18} />, label: 'Words' },
-              { path: '/grammar', icon: <BookOpen size={18} />, label: 'Grammar' },
               { path: '/dictionary', icon: <BookMarked size={18} />, label: 'Dictionary' },
               { path: '/alphabet', icon: <Languages size={18} />, label: 'Hangul' },
             ].map(({ path, icon, label }) => (
@@ -195,20 +193,14 @@ export default function NavBar() {
         {/* Desktop layout */}
         <div className="hidden md:block p-4">
           <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <div className="flex items-center gap-3">
+            <button onClick={() => nav('/home')} className="flex items-center gap-3 cursor-pointer">
               <Sparkles className="text-purple-400" size={24} />
               <h1 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
                 {APP_NAME}
               </h1>
-            </div>
+            </button>
 
             <div className="flex gap-2">
-              <button onClick={() => nav('/words')} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg ${isActive('/words') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
-                <Library size={18} />Words
-              </button>
-              <button onClick={() => nav('/grammar')} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg ${isActive('/grammar') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
-                <BookOpen size={18} />Grammar
-              </button>
               <button onClick={() => nav('/dictionary')} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg ${isActive('/dictionary') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
                 <BookMarked size={18} />Dictionary
               </button>

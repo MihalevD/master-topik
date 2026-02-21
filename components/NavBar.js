@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { Sparkles, Flame, LogOut, Settings as SettingsIcon, BookMarked, Languages, X, Menu, TrendingUp } from 'lucide-react'
+import { Sparkles, Flame, LogOut, Settings as SettingsIcon, BookMarked, Languages, X, Menu, TrendingUp, User } from 'lucide-react'
 import { useApp } from '@/app/providers'
 import { APP_NAME, getAchievements } from '@/lib/constants'
 import { MILESTONE_PHRASES, MILESTONE_COLORS } from '@/lib/rankAchievements'
@@ -31,6 +31,7 @@ export default function NavBar() {
   }, [wordStats, grammarStats])
   const [showAchievementModal, setShowAchievementModal] = useState(false)
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
+  const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [seenIds, setSeenIds] = useState(loadSeenIds)
 
   const isActive = (path) => pathname === path
@@ -191,20 +192,8 @@ export default function NavBar() {
               </h1>
             </button>
 
-            <div className="flex gap-2">
-              <button onClick={() => nav('/dictionary')} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg ${isActive('/dictionary') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
-                <BookMarked size={18} />Dictionary
-              </button>
-              <button onClick={() => nav('/alphabet')} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg ${isActive('/alphabet') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
-                <Languages size={18} />Hangul
-              </button>
-              <button onClick={() => nav('/admin/images')} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg ${isActive('/admin/images') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
-                <SettingsIcon size={18} />Admin
-              </button>
-            </div>
-
             <div className="flex items-center gap-3">
-              {/* Progress button — TOPIK readiness */}
+              {/* TOPIK readiness pill */}
               <button
                 onClick={() => nav('/readiness')}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-800 border border-purple-500/40 cursor-pointer hover:opacity-80 transition-opacity"
@@ -221,6 +210,7 @@ export default function NavBar() {
                 </div>
               </button>
 
+              {/* Streak pill */}
               <button
                 onClick={() => hasNewAchievement ? setShowAchievementModal(true) : nav('/profile')}
                 className="relative flex items-center gap-2 px-3 py-1 rounded-full bg-gray-800 border border-orange-500 cursor-pointer hover:opacity-80 transition-opacity"
@@ -231,12 +221,47 @@ export default function NavBar() {
                   <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
                 )}
               </button>
-              <button onClick={() => nav('/settings')} className={`p-2 rounded-lg ${isActive('/settings') ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'} transition-colors cursor-pointer`}>
-                <SettingsIcon size={18} />
-              </button>
-              <button onClick={handleSignOut} className="p-2 rounded-lg bg-gray-800 text-white hover:bg-gray-700 cursor-pointer">
-                <LogOut size={18} />
-              </button>
+
+              {/* Profile button + dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowProfileMenu(v => !v)}
+                  className="w-9 h-9 rounded-full bg-gray-800 border border-gray-700 hover:border-purple-500/50 flex items-center justify-center cursor-pointer transition-colors"
+                >
+                  <User size={17} className="text-gray-400" />
+                </button>
+
+                {showProfileMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowProfileMenu(false)} />
+                    <div className="absolute top-full right-0 mt-2 w-48 bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl z-50 overflow-hidden py-1.5">
+                      {[
+                        { path: '/dictionary', icon: <BookMarked size={15} />, label: 'Dictionary' },
+                        { path: '/alphabet',   icon: <Languages size={15} />,  label: 'Hangul' },
+                        { path: '/settings',   icon: <SettingsIcon size={15} />, label: 'Settings' },
+                        { path: '/admin/images', icon: <SettingsIcon size={15} />, label: 'Admin' },
+                      ].map(({ path, icon, label }) => (
+                        <button
+                          key={path}
+                          onClick={() => { nav(path); setShowProfileMenu(false) }}
+                          className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors cursor-pointer ${
+                            isActive(path) ? 'text-purple-400 bg-purple-500/10' : 'text-gray-300 hover:bg-gray-800'
+                          }`}
+                        >
+                          {icon}{label}
+                        </button>
+                      ))}
+                      <div className="h-px bg-gray-800 my-1" />
+                      <button
+                        onClick={handleSignOut}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-gray-800 transition-colors cursor-pointer"
+                      >
+                        <LogOut size={15} />Sign out
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -127,28 +127,31 @@ export default function PracticePage() {
         </div>
       ) : (
         <>
-<div className="flex-1 p-4 overflow-y-auto md:overflow-hidden md:flex md:items-center pb-[5.5rem] md:pb-4">
-            <div className="max-w-5xl w-full mx-auto">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:items-stretch">
-                <div className="md:col-span-2 flex flex-col">
-                  <PracticeCard
-                    word={currentWord} input={input} setInput={setInput}
-                    feedback={feedback} setFeedback={setFeedback}
-                    showHint={showHint} setShowHint={setShowHint}
-                    showExample={showExample} setShowExample={setShowExample}
-                    handleSubmit={handleSubmit} handleNextWord={handleNextWord}
-                    currentWordDifficulty={currentWordDifficulty}
-                    reverseMode={reverseMode} onSpeak={speakKorean}
-                  />
-                </div>
-                <div className="hidden md:flex md:col-span-1 flex-col">
-                  <Sidebar
-                    dailyCorrect={dailyCorrect} dailyChallenge={dailyChallenge}
-                    progress={progress} totalCompleted={totalCompleted}
-                    topikIIUnlocked={topikIIUnlocked}
-                    streak={streak} currentWord={currentWord}
-                    onReviewDifficult={() => handleReviewDifficult(dailyWords, currentIndex, dailyCorrect, dailySkipped)} isReviewing={isReviewing}
-                  />
+          <div className="flex-1 overflow-y-auto md:overflow-hidden md:flex md:flex-col">
+
+            <div className="p-4 md:p-6 pb-[5.5rem] md:pb-6 md:flex-1 md:min-h-0 md:flex md:flex-col md:justify-center">
+              <div className="max-w-[1100px] w-full mx-auto">
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] gap-4 md:gap-5 md:items-start">
+                  <div className="md:overflow-y-auto">
+                    <PracticeCard
+                      word={currentWord} input={input} setInput={setInput}
+                      feedback={feedback} setFeedback={setFeedback}
+                      showHint={showHint} setShowHint={setShowHint}
+                      showExample={showExample} setShowExample={setShowExample}
+                      handleSubmit={handleSubmit} handleNextWord={handleNextWord}
+                      currentWordDifficulty={currentWordDifficulty}
+                      reverseMode={reverseMode} onSpeak={speakKorean}
+                    />
+                  </div>
+                  <div className="hidden md:block md:overflow-y-auto">
+                    <Sidebar
+                      dailyCorrect={dailyCorrect} dailyChallenge={dailyChallenge}
+                      progress={progress} totalCompleted={totalCompleted}
+                      topikIIUnlocked={topikIIUnlocked}
+                      streak={streak} currentWord={currentWord}
+                      onReviewDifficult={() => handleReviewDifficult(dailyWords, currentIndex, dailyCorrect, dailySkipped)} isReviewing={isReviewing}
+                    />
+                  </div>
                 </div>
               </div>
             </div>

@@ -1,18 +1,12 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, useRef } from 'react'
-import { supabase, saveWordProgress, getWordProgress, saveUserStats, getUserStats, saveDailyChallenge, getDailyChallenge } from '@/lib/supabase'
+import { supabase, saveWordProgress, saveUserStats, getUserStats, saveDailyChallenge, getDailyChallenge } from '@/lib/supabase'
+import { getWords } from '@/lib/words'
 import { ranks } from '@/lib/ranks'
 import { TOPIKII_UNLOCK_THRESHOLD, DEFAULT_DAILY_CHALLENGE, REVIEW_DIFFICULT_COUNT } from '@/lib/constants'
 
 const AppContext = createContext(null)
-
-// Lazy-load the 344KB word data — separate chunk, not in initial bundle
-let _wordsCache = null
-const getWords = () => {
-  if (!_wordsCache) _wordsCache = import('@/lib/words')
-  return _wordsCache
-}
 
 export function AppProvider({ children }) {
   const [user, setUser] = useState(null)
@@ -105,18 +99,15 @@ export function AppProvider({ children }) {
   const loadUserData = async (userId) => {
     getWords() // pre-warm cache in parallel with Supabase fetches
     try {
-      // Fetch all three in parallel — 3 sequential round-trips → 1 parallel batch
+      // Fetch stats + daily challenge in parallel — word_progress JSONB is inside stats
       const [
         { data: stats, error: statsError },
-        { data: progress, error: progressError },
         { data: savedChallenge },
       ] = await Promise.all([
         getUserStats(userId),
-        getWordProgress(userId),
         getDailyChallenge(userId),
       ])
       if (statsError) throw statsError
-      if (progressError) throw progressError
       if (stats) {
         setTotalCompleted(stats.total_completed || 0)
         setScore(stats.current_score || 0)
@@ -139,14 +130,14 @@ export function AppProvider({ children }) {
         }
       }
       let freshWordStats = {}
-      if (progress) {
-        progress.forEach(p => {
-          freshWordStats[p.word_korean] = {
-            attempts: p.attempts, correct: p.correct,
-            hintsUsed: p.hints_used, examplesUsed: p.examples_used,
-            lastSeen: new Date(p.last_seen).getTime(),
+      if (stats?.word_progress) {
+        for (const [korean, v] of Object.entries(stats.word_progress)) {
+          freshWordStats[korean] = {
+            attempts: v.a, correct: v.c,
+            hintsUsed: v.h, examplesUsed: v.e,
+            lastSeen: v.t * 1000,
           }
-        })
+        }
         setWordStats(freshWordStats)
       }
       if (!wordsGeneratedRef.current) {
@@ -201,14 +192,10 @@ export function AppProvider({ children }) {
   const flushPendingSaves = async () => {
     const userId = userRef.current?.id
     if (!userId) return
-    const entries = Object.entries(pendingSavesRef.current)
-    if (entries.length === 0) return
+    if (Object.keys(pendingSavesRef.current).length === 0) return
+    const snapshot = { ...pendingSavesRef.current }
     pendingSavesRef.current = {}
-    await Promise.all(
-      entries.map(([korean, s]) =>
-        saveWordProgress(userId, korean, s.attempts, s.correct, s.hintsUsed, s.examplesUsed)
-      )
-    )
+    await saveWordProgress(userId, snapshot)
   }
 
   const updateWordStats = async (word, isCorrect, usedHint, usedExample) => {

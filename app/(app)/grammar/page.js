@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useApp } from '@/app/providers'
 import dynamic from 'next/dynamic'
-import { allWords } from '@/lib/words'
+import { getWords } from '@/lib/words'
 import { topikIGrammar, topikIIGrammar, topikIGrammarQuestions, topikIIGrammarQuestions } from '@/lib/grammar'
 import { BookOpen, ChevronRight } from 'lucide-react'
 
@@ -15,6 +15,11 @@ export default function GrammarPage() {
   const [level, setLevel]       = useState(null)   // null | 'I' | 'II'
   const [showGame, setShowGame] = useState(false)
   const [gameCats, setGameCats] = useState(null)
+  const [allWords, setAllWords] = useState([])
+
+  useEffect(() => {
+    getWords().then(({ allWords }) => setAllWords(allWords))
+  }, [])
 
   const grammarData      = level === 'II' ? topikIIGrammar      : topikIGrammar
   const staticQuestions  = level === 'II' ? topikIIGrammarQuestions : topikIGrammarQuestions

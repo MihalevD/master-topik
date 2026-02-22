@@ -94,47 +94,67 @@ export default function GrammarRuleDetail({ rule, stat, color = 'blue', category
             <p className={`text-base md:text-lg font-mono leading-relaxed ${c.accent}`}>{rule.pattern}</p>
           </section>
 
-          {/* Key example — large Korean */}
-          <section className="bg-gray-800/40 rounded-2xl p-4 border border-gray-700/40 mb-4">
-            <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-3 font-semibold">Key Example</p>
-            <p className="text-2xl font-bold text-white leading-snug">{rule.example}</p>
-            <p className="text-gray-400 text-sm mt-2 italic">{rule.translation}</p>
+          {/* Key example — hero card */}
+          <section className="rounded-2xl mb-4 overflow-hidden border border-gray-700/40">
+            <div className="px-4 pt-3.5 pb-2.5 border-b border-gray-700/40 bg-gray-800/60">
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Key Example</p>
+            </div>
+            <div className="px-5 py-5 bg-gray-800/20">
+              <p className="text-2xl font-bold text-white leading-snug tracking-wide">{rule.example}</p>
+              <div className="mt-2.5 flex items-start gap-2">
+                <span className="text-[10px] text-gray-600 uppercase tracking-wider mt-0.5 flex-shrink-0">EN</span>
+                <p className="text-gray-400 text-sm italic leading-snug">{rule.translation}</p>
+              </div>
+            </div>
           </section>
 
-          {/* Form Table — card grid */}
+          {/* Form Table — stacked cards */}
           {rule.formTable && (
             <section className="rounded-2xl overflow-hidden border border-gray-700/40 mb-4">
-              <div className="px-4 pt-3.5 pb-2.5 border-b border-gray-700/40 bg-gray-800/60">
-                <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Conjugation Forms</p>
+              <div className="px-4 pt-3.5 pb-2.5 border-b border-gray-700/40 bg-gray-800/60 flex items-center justify-between">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Forms &amp; Conjugation</p>
+                <span className="text-[10px] text-gray-700">{rule.formTable.length} form{rule.formTable.length > 1 ? 's' : ''}</span>
               </div>
-              {rule.formTable.map((row, i) => (
-                <div
-                  key={i}
-                  className={`grid grid-cols-[1fr_auto_1fr] gap-3 px-4 py-3 items-start ${
-                    i < rule.formTable.length - 1 ? 'border-b border-gray-700/30' : ''
-                  } ${i % 2 === 0 ? 'bg-gray-800/20' : 'bg-gray-800/40'}`}
-                >
-                  <span className="text-gray-400 text-sm">{row.condition}</span>
-                  <span className={`text-sm font-bold whitespace-nowrap ${c.accent}`}>{row.form}</span>
-                  <span className="text-gray-300 text-xs font-mono leading-relaxed text-right">{row.example}</span>
-                </div>
-              ))}
+              <div className={`grid gap-0 ${rule.formTable.length > 3 ? 'sm:grid-cols-2' : ''}`}>
+                {rule.formTable.map((row, i) => (
+                  <div
+                    key={i}
+                    className={`px-4 py-3.5 ${
+                      i < rule.formTable.length - 1 ? 'border-b border-gray-700/30' : ''
+                    } ${
+                      rule.formTable.length > 3 && i % 2 === 0 && i < rule.formTable.length - 1
+                        ? 'sm:border-r sm:border-b-0'
+                        : ''
+                    } ${i % 2 === 0 ? 'bg-gray-800/20' : 'bg-gray-800/40'}`}
+                  >
+                    <p className="text-[11px] text-gray-500 mb-1 leading-none">{row.condition}</p>
+                    <p className={`text-lg font-bold mb-1.5 leading-tight ${c.accent}`}>{row.form}</p>
+                    <p className="text-gray-400 text-xs font-mono leading-relaxed">{row.example}</p>
+                  </div>
+                ))}
+              </div>
             </section>
           )}
 
-          {/* More Examples — big Korean */}
+          {/* Examples — numbered, big Korean */}
           {rule.examples && (
             <section className="rounded-2xl overflow-hidden border border-gray-700/40 mb-4">
-              <div className="px-4 pt-3.5 pb-2.5 border-b border-gray-700/40 bg-gray-800/60">
-                <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">More Examples</p>
+              <div className="px-4 pt-3.5 pb-2.5 border-b border-gray-700/40 bg-gray-800/60 flex items-center justify-between">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Example Sentences</p>
+                <span className="text-[10px] text-gray-700">{rule.examples.length} examples</span>
               </div>
               {rule.examples.map((ex, i) => (
                 <div
                   key={i}
-                  className={`px-4 py-3.5 ${i < rule.examples.length - 1 ? 'border-b border-gray-700/30' : ''} ${i % 2 === 0 ? 'bg-gray-800/20' : 'bg-gray-800/40'}`}
+                  className={`flex gap-3 px-4 py-4 ${i < rule.examples.length - 1 ? 'border-b border-gray-700/30' : ''} ${i % 2 === 0 ? 'bg-gray-800/20' : 'bg-gray-800/40'}`}
                 >
-                  <p className="text-white font-bold text-xl leading-snug">{ex.korean}</p>
-                  <p className="text-gray-400 text-sm mt-1 italic">{ex.english}</p>
+                  <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold mt-1 ${c.badge} border`}>
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-white font-bold text-xl leading-snug">{ex.korean}</p>
+                    <p className="text-gray-400 text-sm mt-1 italic leading-snug">{ex.english}</p>
+                  </div>
                 </div>
               ))}
             </section>

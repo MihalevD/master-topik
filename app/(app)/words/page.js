@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useApp } from '@/app/providers'
 import dynamic from 'next/dynamic'
-import { POINTS, TOPIKII_UNLOCK_THRESHOLD } from '@/lib/constants'
+import { TOPIKII_UNLOCK_THRESHOLD } from '@/lib/constants'
 
 const PracticeCard     = dynamic(() => import('@/components/PracticeCard'))
 const Sidebar          = dynamic(() => import('@/components/Sidebar'))
@@ -13,13 +13,15 @@ const ChallengeComplete = dynamic(() => import('@/components/ChallengeComplete')
 export default function PracticePage() {
   const {
     dailyWords, setDailyWords, currentIndex, setCurrentIndex,
-    score, setScore, totalCompleted, setTotalCompleted,
-    dailyChallenge, streak, wordStats, updateWordStats,
+    totalCompleted, setTotalCompleted,
+    dailyChallenge, wordStats, updateWordStats,
     reviewMode, reverseMode, dailyCorrect, setDailyCorrect,
-    dailySkipped, setDailySkipped, isReviewing, setIsReviewing,
-    speakKorean, handleNewChallenge, handleReviewDifficult, handleReturnToChallenge,
+    isReviewing,
+    isEndlessMode,
+    streak, speakKorean, handleReviewDifficult, handleReturnToChallenge,
+    handleContinueEndless, handleReviewLearned,
     savedChallenge, completeChallengeScore,
-    getWordDifficulty, recordScore,
+    getWordDifficulty,
   } = useApp()
 
   const [input, setInput] = useState('')
@@ -30,24 +32,20 @@ export default function PracticePage() {
   const currentWord = dailyWords.length > 0 ? dailyWords[currentIndex] : null
   const progress = (dailyCorrect / dailyChallenge) * 100
   const currentWordDifficulty = currentWord ? getWordDifficulty(currentWord) : 'New'
-  const points = isReviewing ? POINTS.REVIEW : showHint ? POINTS.HINT : showExample ? POINTS.EXAMPLE : POINTS.BASE
   const topikIIUnlocked = totalCompleted >= TOPIKII_UNLOCK_THRESHOLD
-  const handleNextWord = (isSkip = false) => {
-    if (isSkip && !isReviewing && !reviewMode) setDailySkipped(prev => prev + 1)
-    const looping = isReviewing || reviewMode
+  const handleNextWord = () => {
+    const looping = isReviewing || reviewMode || isEndlessMode
     if (!looping && dailyCorrect >= dailyChallenge) {
-      completeChallengeScore(score)
+      completeChallengeScore()
       setFeedback('complete')
     } else if (currentIndex < dailyWords.length - 1) {
       setCurrentIndex(currentIndex + 1)
       setInput(''); setShowHint(false); setShowExample(false); setFeedback('')
-    } else if (looping) {
+    } else {
+      // Ran out of words in the buffer — reshuffle and keep going until the goal is met
       setDailyWords(prev => [...prev].sort(() => Math.random() - 0.5))
       setCurrentIndex(0)
       setInput(''); setShowHint(false); setShowExample(false); setFeedback('')
-    } else {
-      completeChallengeScore(score)
-      setFeedback('complete')
     }
   }
 
@@ -64,18 +62,14 @@ export default function PracticePage() {
       isCorrect = normalized === currentWord.korean.toLowerCase().replace(/\s+/g, '')
     }
     const isNewWord = !wordStats[currentWord.korean] || wordStats[currentWord.korean].attempts === 0
-    await updateWordStats(currentWord, isCorrect, showHint, showExample)
     if (isCorrect) {
+      await updateWordStats(currentWord, true, showHint, showExample)
       setFeedback('correct')
       if (!isReviewing && !reviewMode) {
-        const pts = showHint ? POINTS.HINT : showExample ? POINTS.EXAMPLE : POINTS.BASE
-        const newScore = score + pts
         const newTotal = isNewWord ? totalCompleted + 1 : totalCompleted
-        const newDailyCorrect = dailyCorrect + 1
-        setScore(newScore)
+        const newDailyCorrect = isEndlessMode ? dailyCorrect : dailyCorrect + 1
         setTotalCompleted(newTotal)
         setDailyCorrect(newDailyCorrect)
-        recordScore(newTotal, newScore, streak, newDailyCorrect)
       }
     } else {
       setFeedback('wrong')
@@ -85,7 +79,7 @@ export default function PracticePage() {
   return (
     <>
       {currentWord && feedback === 'correct' && (
-        <CorrectModal word={currentWord} points={points} onNext={handleNextWord} onSpeak={speakKorean} />
+        <CorrectModal word={currentWord} onNext={handleNextWord} onSpeak={speakKorean} />
       )}
 
       {isReviewing && (
@@ -101,25 +95,32 @@ export default function PracticePage() {
             </button>
           ) : (
             <button
-              onClick={() => { handleNewChallenge(); setFeedback('') }}
-              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-4 py-1.5 rounded-xl text-sm font-bold transition-all cursor-pointer shadow-md"
+              onClick={() => { handleContinueEndless(); setFeedback(''); setInput(''); setShowHint(false); setShowExample(false) }}
+              className="bg-gradient-to-r from-green-600 to-emerald-500 hover:opacity-90 text-white px-4 py-1.5 rounded-xl text-sm font-bold transition-all cursor-pointer shadow-md"
             >
-              New Challenge →
+              Go Endless ∞
             </button>
           )}
+        </div>
+      )}
+
+      {isEndlessMode && (
+        <div className="fixed top-16 md:top-20 left-1/2 -translate-x-1/2 z-50 flex items-center px-5 py-3 rounded-2xl shadow-2xl border border-green-500/50 bg-gray-900/95 backdrop-blur-md whitespace-nowrap">
+          <span className="text-green-300 text-sm font-semibold">∞ Endless</span>
         </div>
       )}
 
       {feedback === 'complete' ? (
         <ChallengeComplete
           streak={streak} totalCompleted={totalCompleted}
-          dailyCorrect={dailyCorrect} dailySkipped={dailySkipped}
           onReview={() => {
-            setDailyWords(prev => prev.slice(0, currentIndex + 1))
-            setIsReviewing(true); setCurrentIndex(0)
-            setInput(''); setFeedback(''); setShowHint(false); setShowExample(false)
+            handleReviewLearned()
+            setFeedback(''); setInput(''); setShowHint(false); setShowExample(false)
           }}
-          onNewChallenge={() => { handleNewChallenge(); setFeedback('') }}
+          onNewChallenge={() => {
+            handleContinueEndless()
+            setFeedback(''); setInput(''); setShowHint(false); setShowExample(false)
+          }}
         />
       ) : dailyWords.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
@@ -149,7 +150,7 @@ export default function PracticePage() {
                       progress={progress} totalCompleted={totalCompleted}
                       topikIIUnlocked={topikIIUnlocked}
                       streak={streak} currentWord={currentWord}
-                      onReviewDifficult={() => handleReviewDifficult(dailyWords, currentIndex, dailyCorrect, dailySkipped)} isReviewing={isReviewing}
+                      onReviewDifficult={() => handleReviewDifficult(dailyWords, currentIndex, dailyCorrect)} isReviewing={isReviewing}
                     />
                   </div>
                 </div>
@@ -172,7 +173,7 @@ export default function PracticePage() {
                 </div>
               </div>
               <button
-                onClick={() => handleReviewDifficult(dailyWords, currentIndex, dailyCorrect, dailySkipped)}
+                onClick={() => handleReviewDifficult(dailyWords, currentIndex, dailyCorrect)}
                 className="bg-red-900 hover:bg-red-800 border border-red-700 text-red-300 text-xs px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition-colors"
               >
                 Review ↻

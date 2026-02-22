@@ -10,8 +10,8 @@ import { computeExamReadiness, READINESS_COLORS } from '@/lib/readiness'
 
 export default function HomePage() {
   const router = useRouter()
-  const { totalCompleted, getDueCount, wordStats, grammarStats } = useApp()
-  const grammarLocked = totalCompleted < 5
+  const { totalCompleted, totalScore, getDueCount, wordStats, grammarStats } = useApp()
+  const grammarLocked = totalScore <= 0
   const dueCount = getDueCount()
 
   const [readiness, setReadiness] = useState(null)
@@ -72,7 +72,7 @@ export default function HomePage() {
           >
             {grammarLocked && (
               <div className="absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap bg-gray-900 border border-gray-700 text-gray-300 text-xs px-3 py-1.5 rounded-lg shadow-lg opacity-0 group-hover/g:opacity-100 transition-opacity pointer-events-none z-10">
-                Learn {5 - totalCompleted} more words to unlock
+                Complete a daily challenge to unlock
                 <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-700" />
               </div>
             )}
@@ -91,7 +91,7 @@ export default function HomePage() {
               <p className="text-gray-500 text-xs leading-relaxed">Patterns, rules & sentence structure</p>
               {grammarLocked && (
                 <span className="inline-block mt-1.5 text-[11px] font-semibold text-gray-500 bg-gray-700/40 border border-gray-700/40 px-2 py-0.5 rounded-full">
-                  {5 - totalCompleted} words to unlock
+                  Complete a challenge first
                 </span>
               )}
             </div>

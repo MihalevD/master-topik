@@ -5,13 +5,14 @@ import { useApp } from '@/app/providers'
 import dynamic from 'next/dynamic'
 import { getWords } from '@/lib/words'
 import { topikIGrammar, topikIIGrammar, topikIGrammarQuestions, topikIIGrammarQuestions } from '@/lib/grammar'
-import { BookOpen, ChevronRight } from 'lucide-react'
+import { BookOpen, ChevronRight, Lock } from 'lucide-react'
 
 const GrammarView = dynamic(() => import('@/components/GrammarView'))
 const GrammarGame = dynamic(() => import('@/components/GrammarGame'))
 
 export default function GrammarPage() {
-  const { wordStats, saveGrammarResult, grammarStats } = useApp()
+  const { wordStats, saveGrammarResult, grammarStats, totalScore } = useApp()
+  const grammarLocked = totalScore <= 0
 
   const ruleStats = grammarStats?.rule_stats || {}
   const MIN_RULE_Q = 3
@@ -37,6 +38,18 @@ export default function GrammarPage() {
 
   const grammarData      = level === 'II' ? topikIIGrammar      : topikIGrammar
   const staticQuestions  = level === 'II' ? topikIIGrammarQuestions : topikIGrammarQuestions
+
+  if (grammarLocked) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-gray-800 border border-gray-700 flex items-center justify-center mb-4">
+          <Lock className="text-gray-500" size={28} />
+        </div>
+        <h2 className="text-xl font-bold text-white mb-2">Grammar Locked</h2>
+        <p className="text-gray-500 text-sm max-w-xs">Complete a daily word challenge first to unlock grammar study.</p>
+      </div>
+    )
+  }
 
   if (showGame) {
     return (

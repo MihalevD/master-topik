@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, useRef } from 'react'
-import { supabase, saveWordProgress, saveUserStats, getUserStats, saveDailyChallenge, getDailyChallenge, saveGrammarStats } from '@/lib/supabase'
+import { supabase, saveWordProgress, saveUserStats, getUserStats, saveDailyChallenge, getDailyChallenge, saveGrammarStats, saveDailyChallengePref, updateDailyChallengeProgress, deleteDailyChallenge, updateDailyChallengeWords, markDailyCompleted, resetDailyCompleted } from '@/lib/supabase'
 import { getWords } from '@/lib/words'
 import { ranks } from '@/lib/ranks'
 import { TOPIKII_UNLOCK_THRESHOLD, DEFAULT_DAILY_CHALLENGE, REVIEW_DIFFICULT_COUNT } from '@/lib/constants'
@@ -66,6 +66,21 @@ function computeSRS(stats, isCorrect) {
   return { interval, nextReview: Date.now() + interval * 24 * 60 * 60 * 1000 }
 }
 
+// ── Decompress stored word stats ──────────────────────────────────────────────
+function decompressWordStats(compressed) {
+  const result = {}
+  for (const [korean, v] of Object.entries(compressed)) {
+    result[korean] = {
+      attempts: v.a, correct: v.c,
+      hintsUsed: v.h, examplesUsed: v.e,
+      lastSeen:   v.t  * 1000,
+      nextReview: v.n  ? v.n  * 1000 : 0,
+      interval:   v.iv || 0,
+    }
+  }
+  return result
+}
+
 const AppContext = createContext(null)
 
 export function AppProvider({ children }) {
@@ -73,7 +88,6 @@ export function AppProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [dailyWords, setDailyWords] = useState([])
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [score, setScore] = useState(0)
   const [totalCompleted, setTotalCompleted] = useState(0)
   const [dailyChallenge, setDailyChallengeState] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -88,26 +102,72 @@ export function AppProvider({ children }) {
   const [reviewMode, setReviewMode] = useState(false)
   const [reverseMode, setReverseMode] = useState(false)
   const [dailyCorrect, setDailyCorrect] = useState(0)
-  const [dailySkipped, setDailySkipped] = useState(0)
   const [isReviewing, setIsReviewing] = useState(false)
   const [savedChallenge, setSavedChallenge] = useState(null) // snapshot before difficult review
-  const [totalScore, setTotalScore] = useState(0)
+  const [isEndlessMode, setIsEndlessMode] = useState(false)
   const [error, setError] = useState(null)
   const wordsGeneratedRef = useRef(false)
   // Refs for use inside timers/callbacks (avoid stale closures)
   const userRef = useRef(null)
-  const totalScoreRef = useRef(0)
-  const pendingSavesRef = useRef({})   // word progress batch queue
+  const wordStatsRef = useRef({})     // always-current mirror of wordStats state
+  const dailyWordsRef = useRef([])    // always-current mirror of dailyWords state
+  const totalCompletedRef = useRef(0)
+  const dailyCorrectRef = useRef(0)   // needed for auto-complete in setDailyChallenge
   const saveTimerRef = useRef(null)
-  const pendingStatsRef = useRef(null) // user stats debounce queue
-  const statsTimerRef = useRef(null)
+  const isEndlessModeRef = useRef(false)
 
   useEffect(() => { userRef.current = user }, [user])
-  useEffect(() => { totalScoreRef.current = totalScore }, [totalScore])
+  useEffect(() => { dailyWordsRef.current = dailyWords }, [dailyWords])
+  useEffect(() => { totalCompletedRef.current = totalCompleted }, [totalCompleted])
+  useEffect(() => { dailyCorrectRef.current = dailyCorrect }, [dailyCorrect])
+  useEffect(() => { isEndlessModeRef.current = isEndlessMode }, [isEndlessMode])
 
-  const setDailyChallenge = (val) => {
-    if (typeof window !== 'undefined') localStorage.setItem('dailyChallenge', val)
+  const setDailyChallenge = async (val) => {
+    if (typeof window !== 'undefined') localStorage.setItem('dailyChallenge', String(val))
     setDailyChallengeState(val)
+    const userId = userRef.current?.id
+    if (userId) saveDailyChallengePref(userId, val)
+
+    const current = dailyWordsRef.current
+    if (current.length === 0) return
+
+    // If user already answered >= new target, auto-complete the current challenge
+    if (dailyCorrectRef.current >= val) {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+      await completeChallenge()
+      // Reset state and start a fresh challenge
+      setDailyCorrect(0)
+      setIsReviewing(false)
+      setSavedChallenge(null)
+      wordsGeneratedRef.current = false
+      generateDailyWords(wordStatsRef.current, userId)
+      const today = new Date().toISOString().split('T')[0]
+      if (userId) saveUserStats(userId, totalCompletedRef.current, streak, today, 0)
+      return
+    }
+
+    // Adjust the word buffer to match the new challenge size
+    const targetBuffer = val * 3
+    if (current.length > targetBuffer) {
+      // Too many words — trim to new buffer size
+      const trimmed = current.slice(0, targetBuffer)
+      setDailyWords(trimmed)
+      dailyWordsRef.current = trimmed
+      if (userId) updateDailyChallengeWords(userId, trimmed.map(w => w.korean))
+    } else if (current.length < targetBuffer) {
+      // Too few words — pull more from the pool, avoiding duplicates
+      const { topikIWords, allWords } = await getWords()
+      const pool = totalCompletedRef.current >= TOPIKII_UNLOCK_THRESHOLD ? allWords : topikIWords
+      const existing = new Set(current.map(w => w.korean))
+      const extra = pool
+        .filter(w => !existing.has(w.korean))
+        .sort(() => Math.random() - 0.5)
+        .slice(0, targetBuffer - current.length)
+      const updated = [...current, ...extra]
+      setDailyWords(updated)
+      dailyWordsRef.current = updated
+      if (userId) updateDailyChallengeWords(userId, updated.map(w => w.korean))
+    }
   }
 
 
@@ -149,6 +209,7 @@ export function AppProvider({ children }) {
     const selected = pickBalanced(priorityList, bufferSize)
       .sort(() => Math.random() - 0.5)   // shuffle the final mix
     const uid = userId ?? userRef.current?.id
+    // saveDailyChallenge upserts word_koreans and resets word_progress to {} for a fresh challenge
     if (uid) saveDailyChallenge(uid, selected.map(w => w.korean))
     setDailyWords(selected)
     setCurrentIndex(0)
@@ -158,65 +219,93 @@ export function AppProvider({ children }) {
   const loadUserData = async (userId) => {
     getWords() // pre-warm cache in parallel with Supabase fetches
     try {
-      // Fetch stats + daily challenge in parallel — word_progress JSONB is inside stats
+      // Fetch stats + today's daily challenge in parallel
       const [
         { data: stats, error: statsError },
-        { data: savedChallenge },
+        { data: todayChallenge },
       ] = await Promise.all([
         getUserStats(userId),
         getDailyChallenge(userId),
       ])
       if (statsError) throw statsError
+      let effectiveDailyCompleted = stats?.daily_completed === true
       if (stats) {
         setTotalCompleted(stats.total_completed || 0)
-        setScore(stats.current_score || 0)
         setStreak(stats.streak || 0)
-        const loadedTotalScore = stats.total_score || 0
-        setTotalScore(loadedTotalScore)
-        totalScoreRef.current = loadedTotalScore
         const today = new Date().toISOString().split('T')[0]
         const lastLogin = stats.last_login
         if (lastLogin !== today) {
+          effectiveDailyCompleted = false
           const yesterday = new Date()
           yesterday.setDate(yesterday.getDate() - 1)
           const newStreak = lastLogin === yesterday.toISOString().split('T')[0] ? stats.streak + 1 : 0
           setStreak(newStreak)
           setDailyCorrect(0)
-          setScore(0)
-          await saveUserStats(userId, stats.total_completed, 0, newStreak, today, 0, loadedTotalScore)
+          await Promise.all([
+            saveUserStats(userId, stats.total_completed, newStreak, today, 0),
+            resetDailyCompleted(userId),
+          ])
         } else {
           setDailyCorrect(stats.daily_correct || 0)
         }
+        // Restore challenge preference from DB (overrides localStorage if different)
+        if (stats.daily_challenge) {
+          if (typeof window !== 'undefined') localStorage.setItem('dailyChallenge', String(stats.daily_challenge))
+          setDailyChallengeState(stats.daily_challenge)
+        }
       }
+
+      // Load canonical word stats from user_stats
       let freshWordStats = {}
       if (stats?.word_progress) {
-        for (const [korean, v] of Object.entries(stats.word_progress)) {
-          freshWordStats[korean] = {
-            attempts: v.a, correct: v.c,
-            hintsUsed: v.h, examplesUsed: v.e,
-            lastSeen:   v.t  * 1000,
-            nextReview: v.n  ? v.n  * 1000 : 0,
-            interval:   v.iv || 0,
-          }
-        }
-        setWordStats(freshWordStats)
+        freshWordStats = decompressWordStats(stats.word_progress)
       }
+
+      // Merge any staged progress from today's daily_challenges row
+      // (staged progress is more recent than the canonical store)
+      const stagedRaw = todayChallenge?.word_progress || {}
+      if (Object.keys(stagedRaw).length > 0) {
+        const staged = decompressWordStats(stagedRaw)
+        const merged = { ...freshWordStats, ...staged }
+        setWordStats(merged)
+        wordStatsRef.current = merged
+      } else {
+        setWordStats(freshWordStats)
+        wordStatsRef.current = freshWordStats
+      }
+
       if (stats?.grammar_stats) {
         setGrammarStats(stats.grammar_stats)
       }
+
+      const completedToday = effectiveDailyCompleted
+
       if (!wordsGeneratedRef.current) {
-        if (savedChallenge?.word_koreans?.length > 0) {
+        if (completedToday && !todayChallenge) {
+          // Challenge already completed today (on this or another device) — go straight to endless mode
+          const topikIIUnlocked = (stats?.total_completed || 0) >= TOPIKII_UNLOCK_THRESHOLD
+          const { topikIWords, allWords } = await getWords()
+          const pool = topikIIUnlocked ? allWords : topikIWords
+          const endless = [...pool].sort(() => Math.random() - 0.5)
+          setDailyWords(endless)
+          dailyWordsRef.current = endless
+          setCurrentIndex(0)
+          wordsGeneratedRef.current = true
+          setIsEndlessMode(true)
+        } else if (todayChallenge?.word_koreans?.length > 0) {
+          // Restore today's in-progress challenge word list
           const { allWords } = await getWords()
-          const words = savedChallenge.word_koreans.map(k => allWords.find(w => w.korean === k)).filter(Boolean)
+          const words = todayChallenge.word_koreans.map(k => allWords.find(w => w.korean === k)).filter(Boolean)
           if (words.length > 0) {
             setDailyWords(words)
             setCurrentIndex(0)
             wordsGeneratedRef.current = true
           } else {
-            await generateDailyWords(freshWordStats, userId)
+            await generateDailyWords(wordStatsRef.current, userId)
           }
         } else {
-          await generateDailyWords(freshWordStats, userId)
+          // No challenge row today — generate and create one
+          await generateDailyWords(wordStatsRef.current, userId)
         }
       }
     } catch (err) {
@@ -252,14 +341,28 @@ export function AppProvider({ children }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Flush all queued word-progress saves immediately (used on sign-out)
-  const flushPendingSaves = async () => {
+  // Save in-progress word stats — to daily_challenges during a normal session,
+  // or directly to user_stats when in endless mode (no staging row exists)
+  const flushSessionProgress = async () => {
     const userId = userRef.current?.id
     if (!userId) return
-    if (Object.keys(pendingSavesRef.current).length === 0) return
-    const snapshot = { ...pendingSavesRef.current }
-    pendingSavesRef.current = {}
-    await saveWordProgress(userId, snapshot)
+    if (isEndlessModeRef.current) {
+      await saveWordProgress(userId, wordStatsRef.current)
+    } else {
+      await updateDailyChallengeProgress(userId, wordStatsRef.current)
+    }
+  }
+
+  // Finalize a challenge: flush canonical word stats to user_stats + delete the daily_challenges row
+  // + mark today's challenge as completed (for cross-device detection)
+  const completeChallenge = async () => {
+    const userId = userRef.current?.id
+    if (!userId) return
+    await Promise.all([
+      saveWordProgress(userId, wordStatsRef.current),
+      deleteDailyChallenge(userId),
+      markDailyCompleted(userId),
+    ])
   }
 
   const updateWordStats = async (word, isCorrect, usedHint, usedExample) => {
@@ -275,28 +378,12 @@ export function AppProvider({ children }) {
       interval,
     }
     setWordStats(prev => ({ ...prev, [word.korean]: newStats }))
-    // Queue for batched save — flushes 2s after the last answer
-    pendingSavesRef.current[word.korean] = newStats
+    wordStatsRef.current = { ...wordStatsRef.current, [word.korean]: newStats }
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    // Debounced save to daily_challenges staging store (not user_stats directly)
     saveTimerRef.current = setTimeout(() => {
-      flushPendingSaves().catch(() =>
+      flushSessionProgress().catch(() =>
         setError('Failed to save progress. Your streak may not be recorded.')
-      )
-    }, 2000)
-  }
-
-  // Debounced user-stats save — safe because each call supersedes the previous (upsert)
-  const recordScore = (newTotal, newScore, newStreak, newDailyCorrect) => {
-    pendingStatsRef.current = { newTotal, newScore, newStreak, newDailyCorrect }
-    if (statsTimerRef.current) clearTimeout(statsTimerRef.current)
-    statsTimerRef.current = setTimeout(() => {
-      const userId = userRef.current?.id
-      if (!userId || !pendingStatsRef.current) return
-      const { newTotal, newScore, newStreak, newDailyCorrect } = pendingStatsRef.current
-      pendingStatsRef.current = null
-      const today = new Date().toISOString().split('T')[0]
-      saveUserStats(userId, newTotal, newScore, newStreak, today, newDailyCorrect, totalScoreRef.current).catch(() =>
-        setError('Failed to save stats. Please check your connection.')
       )
     }, 2000)
   }
@@ -311,44 +398,74 @@ export function AppProvider({ children }) {
   }
 
   const handleSignOut = async () => {
-    // Flush any queued saves before signing out
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    if (statsTimerRef.current) clearTimeout(statsTimerRef.current)
-    await flushPendingSaves()
-    if (pendingStatsRef.current) {
-      const userId = userRef.current?.id
-      if (userId) {
-        const { newTotal, newScore, newStreak, newDailyCorrect } = pendingStatsRef.current
-        const today = new Date().toISOString().split('T')[0]
-        await saveUserStats(userId, newTotal, newScore, newStreak, today, newDailyCorrect, totalScoreRef.current)
-      }
+    const userId = userRef.current?.id
+    if (userId) {
+      // Save to both staging (so session can resume today) and canonical (source of truth)
+      await Promise.all([
+        updateDailyChallengeProgress(userId, wordStatsRef.current),
+        saveWordProgress(userId, wordStatsRef.current),
+      ])
     }
     await supabase.auth.signOut()
     setUser(null)
   }
 
-  // Called the moment a challenge is marked complete — adds daily score to lifetime total
-  const completeChallengeScore = (dailyScore) => {
-    if (dailyScore <= 0) return
-    const newTotalScore = totalScoreRef.current + dailyScore
-    setTotalScore(newTotalScore)
-    totalScoreRef.current = newTotalScore
-    // totalScoreRef is now updated; the pending recordScore debounce timer will pick it up
+  // Triggers DB finalization (save to user_stats + delete daily_challenges)
+  const completeChallengeScore = () => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    completeChallenge() // async fire-and-forget
   }
 
   const handleNewChallenge = () => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    // Finalize: flush canonical word stats + delete daily_challenges row
+    completeChallenge()
+    resetDailyCompleted(userRef.current?.id)
     setIsReviewing(false)
+    setIsEndlessMode(false)
     setSavedChallenge(null)
     wordsGeneratedRef.current = false
     generateDailyWords() // async fire-and-forget — state updates when words resolve
-    setScore(0)
     setDailyCorrect(0)
-    setDailySkipped(0)
     const today = new Date().toISOString().split('T')[0]
-    saveUserStats(userRef.current?.id, totalCompleted, 0, streak, today, 0, totalScoreRef.current)
+    saveUserStats(userRef.current?.id, totalCompleted, streak, today, 0)
   }
 
-  const handleReviewDifficult = async (currentDailyWords, currentIdx, currentDailyCorrect, currentDailySkipped) => {
+  // "Continue" after challenge complete — endless mode with words not in today's challenge
+  const handleContinueEndless = async () => {
+    const topikIIUnlocked = totalCompletedRef.current >= TOPIKII_UNLOCK_THRESHOLD
+    const { topikIWords, allWords } = await getWords()
+    const pool = topikIIUnlocked ? allWords : topikIWords
+    const todaysKoreans = new Set(dailyWordsRef.current.map(w => w.korean))
+    const availableWords = pool
+      .filter(w => !todaysKoreans.has(w.korean))
+      .sort(() => Math.random() - 0.5)
+    setDailyWords(availableWords)
+    dailyWordsRef.current = availableWords
+    setCurrentIndex(0)
+    setIsEndlessMode(true)
+    setIsReviewing(false)
+    setSavedChallenge(null)
+  }
+
+  // "Review Learned" after challenge complete — all words with at least 1 attempt
+  const handleReviewLearned = async () => {
+    const { allWords } = await getWords()
+    const ws = wordStatsRef.current
+    const learned = allWords
+      .filter(w => ws[w.korean]?.attempts > 0)
+      .sort(() => Math.random() - 0.5)
+    if (learned.length === 0) return
+    setDailyWords(learned)
+    dailyWordsRef.current = learned
+    setCurrentIndex(0)
+    setIsReviewing(true)
+    setIsEndlessMode(false)
+    setSavedChallenge(null)
+  }
+
+  const handleReviewDifficult = async (currentDailyWords, currentIdx, currentDailyCorrect) => {
     const { allWords } = await getWords()
     const difficult = Object.entries(wordStats)
       .filter(([, s]) => s.attempts > 0 && s.correct / s.attempts < 0.8)
@@ -364,7 +481,6 @@ export function AppProvider({ children }) {
         dailyWords: currentDailyWords,
         currentIndex: currentIdx,
         dailyCorrect: currentDailyCorrect,
-        dailySkipped: currentDailySkipped,
         fromReview: isReviewing,
       })
       setDailyWords(difficult)
@@ -378,7 +494,6 @@ export function AppProvider({ children }) {
       setDailyWords(savedChallenge.dailyWords)
       setCurrentIndex(savedChallenge.currentIndex)
       setDailyCorrect(savedChallenge.dailyCorrect)
-      setDailySkipped(savedChallenge.dailySkipped)
       setIsReviewing(savedChallenge.fromReview)
       setSavedChallenge(null)
     } else {
@@ -458,19 +573,20 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       user, loading,
       dailyWords, setDailyWords, currentIndex, setCurrentIndex,
-      score, setScore, totalScore, totalCompleted, setTotalCompleted,
+      totalCompleted, setTotalCompleted,
       dailyChallenge, setDailyChallenge,
       streak, setStreak,
-      wordStats, updateWordStats, recordScore,
+      wordStats, updateWordStats,
       reviewMode, setReviewMode,
       reverseMode, setReverseMode,
       dailyCorrect, setDailyCorrect,
-      dailySkipped, setDailySkipped,
       isReviewing, setIsReviewing,
+      isEndlessMode, setIsEndlessMode,
       error, setError,
       wordsGeneratedRef, generateDailyWords,
       speakKorean, handleSignOut,
       handleNewChallenge, handleReviewDifficult, handleReturnToChallenge, completeChallengeScore,
+      handleContinueEndless, handleReviewLearned,
       savedChallenge,
       grammarStats, saveGrammarResult,
       getWordDifficulty, getCurrentRank, getDueCount, getHardWords, getAccuracyData,

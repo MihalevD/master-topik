@@ -30,6 +30,7 @@ export default function PracticeCard({
       e.preventDefault()
       composer.current = backspace(composer.current)
       internalUpdate.current = true
+      if (feedback === 'wrong') setFeedback('')
       setInput(getFullText(composer.current))
       return
     }
@@ -38,6 +39,7 @@ export default function PracticeCard({
     e.preventDefault()
     composer.current = addJamo(composer.current, jamo)
     internalUpdate.current = true
+    if (feedback === 'wrong') setFeedback('')
     setInput(getFullText(composer.current))
   }
 
@@ -157,7 +159,7 @@ export default function PracticeCard({
             <input
               type="text"
               value={input}
-              onChange={(e) => { if (!krMode || reverseMode) setInput(e.target.value) }}
+              onChange={(e) => { if (!krMode || reverseMode) { if (feedback === 'wrong') setFeedback(''); setInput(e.target.value) } }}
               onKeyDown={handleKeyDown}
               onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
               placeholder={inputPlaceholder}
@@ -181,22 +183,13 @@ export default function PracticeCard({
           </div>
 
           {feedback === 'wrong' ? (
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => { setFeedback(''); setInput(''); setShowHint(false) }}
-                className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2 rounded-xl font-bold text-sm hover:opacity-90 transition-opacity cursor-pointer shadow-lg shadow-purple-500/20"
-              >
-                Try Again
-              </button>
-              <button
-                type="button"
-                onClick={() => handleNextWord(true)}
-                className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 py-2 rounded-xl font-bold text-sm transition-colors cursor-pointer"
-              >
-                Skip →
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => handleNextWord(true)}
+              className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 py-2 rounded-xl font-bold text-sm transition-colors cursor-pointer"
+            >
+              Skip →
+            </button>
           ) : (
             <button
               type="submit"

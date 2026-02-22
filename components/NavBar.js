@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { Sparkles, Flame, LogOut, Settings as SettingsIcon, BookMarked, Languages, X, Menu, TrendingUp, User, Library, BookOpen } from 'lucide-react'
+import { Sparkles, Flame, LogOut, Settings as SettingsIcon, BookMarked, Languages, X, Menu, TrendingUp, User, Library, BookOpen, Lock } from 'lucide-react'
 import { useApp } from '@/app/providers'
 import { APP_NAME, getAchievements } from '@/lib/constants'
 import { MILESTONE_PHRASES, MILESTONE_COLORS } from '@/lib/rankAchievements'
@@ -21,7 +21,8 @@ function loadSeenIds() {
 export default function NavBar() {
   const router = useRouter()
   const pathname = usePathname()
-  const { streak, totalCompleted, handleSignOut, speakKorean, wordStats, grammarStats } = useApp()
+  const { streak, totalCompleted, totalScore, handleSignOut, speakKorean, wordStats, grammarStats } = useApp()
+  const grammarLocked = totalScore <= 0
   const [readiness, setReadiness] = useState(null)
 
   useEffect(() => {
@@ -120,17 +121,26 @@ export default function NavBar() {
               { path: '/grammar',    icon: <BookOpen size={18} />,   label: 'Grammar' },
               { path: '/dictionary', icon: <BookMarked size={18} />, label: 'Dictionary' },
               { path: '/alphabet',   icon: <Languages size={18} />,  label: 'Hangul' },
-            ].map(({ path, icon, label }) => (
-              <button
-                key={path}
-                onClick={() => nav(path)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors cursor-pointer w-full text-left ${
-                  isActive(path) ? 'bg-purple-600 text-white' : 'text-gray-300 hover:bg-gray-800'
-                }`}
-              >
-                {icon}{label}
-              </button>
-            ))}
+            ].map(({ path, icon, label }) => {
+              const locked = path === '/grammar' && grammarLocked
+              return (
+                <button
+                  key={path}
+                  onClick={() => !locked && nav(path)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors w-full text-left ${
+                    locked
+                      ? 'text-gray-600 cursor-not-allowed'
+                      : isActive(path)
+                        ? 'bg-purple-600 text-white cursor-pointer'
+                        : 'text-gray-300 hover:bg-gray-800 cursor-pointer'
+                  }`}
+                >
+                  {locked ? <Lock size={18} /> : icon}
+                  {label}
+                  {locked && <span className="ml-auto text-[10px] text-gray-600">challenge first</span>}
+                </button>
+              )
+            })}
             <button
               onClick={() => nav('/admin/images')}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors cursor-pointer w-full text-left ${

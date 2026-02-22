@@ -97,15 +97,27 @@ export default function GrammarPage() {
             <span className="text-purple-300 font-bold text-lg">I</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-white font-bold text-base">TOPIK I</p>
-            <p className="text-gray-400 text-sm mt-0.5">Beginner — particles, verb forms, basic patterns</p>
-            <p className="text-purple-400 text-xs mt-1">{topikIGrammar.length} categories · {statsI.totalRules} rules</p>
-            {statsI.sessions > 0 ? (
-              <p className="text-gray-500 text-xs mt-1.5">
-                {statsI.sessions} session{statsI.sessions !== 1 ? 's' : ''} · <span className="text-purple-400 font-semibold">{statsI.practicedRules}/{statsI.totalRules}</span> rules practiced
-              </p>
+            <div className="flex items-center justify-between mb-0.5">
+              <p className="text-white font-bold text-base">TOPIK I</p>
+              {statsI.practicedRules > 0 && (
+                <span className="text-xs text-purple-400 font-semibold">{statsI.practicedRules}/{statsI.totalRules}</span>
+              )}
+            </div>
+            <p className="text-gray-400 text-sm">Beginner — particles, verb forms, basic patterns</p>
+            {statsI.practicedRules > 0 ? (
+              <>
+                <div className="w-full bg-gray-700/60 rounded-full h-1.5 mt-2.5 mb-1">
+                  <div
+                    className="bg-gradient-to-r from-purple-500 to-purple-400 h-1.5 rounded-full transition-all duration-500"
+                    style={{ width: `${Math.round((statsI.practicedRules / statsI.totalRules) * 100)}%` }}
+                  />
+                </div>
+                <p className="text-gray-500 text-xs">
+                  {statsI.sessions} session{statsI.sessions !== 1 ? 's' : ''} · Continue →
+                </p>
+              </>
             ) : (
-              <p className="text-gray-600 text-xs mt-1.5">Play a quiz to track your progress</p>
+              <p className="text-gray-600 text-xs mt-1.5">{topikIGrammar.length} categories · {statsI.totalRules} rules to explore</p>
             )}
           </div>
           <ChevronRight size={20} className="text-gray-600 group-hover:text-purple-400 transition-colors flex-shrink-0" />
@@ -120,15 +132,27 @@ export default function GrammarPage() {
             <span className="text-pink-300 font-bold text-lg">II</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-white font-bold text-base">TOPIK II</p>
-            <p className="text-gray-400 text-sm mt-0.5">Intermediate/Advanced — modals, indirect speech, honorifics</p>
-            <p className="text-pink-400 text-xs mt-1">{topikIIGrammar.length} categories · {statsII.totalRules} rules</p>
-            {statsII.sessions > 0 ? (
-              <p className="text-gray-500 text-xs mt-1.5">
-                {statsII.sessions} session{statsII.sessions !== 1 ? 's' : ''} · <span className="text-pink-400 font-semibold">{statsII.practicedRules}/{statsII.totalRules}</span> rules practiced
-              </p>
+            <div className="flex items-center justify-between mb-0.5">
+              <p className="text-white font-bold text-base">TOPIK II</p>
+              {statsII.practicedRules > 0 && (
+                <span className="text-xs text-pink-400 font-semibold">{statsII.practicedRules}/{statsII.totalRules}</span>
+              )}
+            </div>
+            <p className="text-gray-400 text-sm">Intermediate/Advanced — modals, indirect speech, honorifics</p>
+            {statsII.practicedRules > 0 ? (
+              <>
+                <div className="w-full bg-gray-700/60 rounded-full h-1.5 mt-2.5 mb-1">
+                  <div
+                    className="bg-gradient-to-r from-pink-500 to-pink-400 h-1.5 rounded-full transition-all duration-500"
+                    style={{ width: `${Math.round((statsII.practicedRules / statsII.totalRules) * 100)}%` }}
+                  />
+                </div>
+                <p className="text-gray-500 text-xs">
+                  {statsII.sessions} session{statsII.sessions !== 1 ? 's' : ''} · Continue →
+                </p>
+              </>
             ) : (
-              <p className="text-gray-600 text-xs mt-1.5">Play a quiz to track your progress</p>
+              <p className="text-gray-600 text-xs mt-1.5">{topikIIGrammar.length} categories · {statsII.totalRules} rules to explore</p>
             )}
           </div>
           <ChevronRight size={20} className="text-gray-600 group-hover:text-pink-400 transition-colors flex-shrink-0" />

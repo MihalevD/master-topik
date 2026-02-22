@@ -113,6 +113,7 @@ export function AppProvider({ children }) {
   const dailyWordsRef = useRef([])    // always-current mirror of dailyWords state
   const totalCompletedRef = useRef(0)
   const dailyCorrectRef = useRef(0)   // needed for auto-complete in setDailyChallenge
+  const sessionAnsweredRef = useRef(new Set()) // words answered this session (for delta saves)
   const saveTimerRef = useRef(null)
   const isEndlessModeRef = useRef(false)
 
@@ -210,6 +211,8 @@ export function AppProvider({ children }) {
       .sort(() => Math.random() - 0.5)   // shuffle the final mix
     const uid = userId ?? userRef.current?.id
     // saveDailyChallenge upserts word_koreans and resets word_progress to {} for a fresh challenge
+    // Reset session tracking so the new challenge starts with an empty delta
+    sessionAnsweredRef.current = new Set()
     if (uid) saveDailyChallenge(uid, selected.map(w => w.korean))
     setDailyWords(selected)
     setCurrentIndex(0)
@@ -245,8 +248,6 @@ export function AppProvider({ children }) {
             saveUserStats(userId, stats.total_completed, newStreak, today, 0),
             resetDailyCompleted(userId),
           ])
-        } else {
-          setDailyCorrect(stats.daily_correct || 0)
         }
         // Restore challenge preference from DB (overrides localStorage if different)
         if (stats.daily_challenge) {
@@ -261,18 +262,26 @@ export function AppProvider({ children }) {
         freshWordStats = decompressWordStats(stats.word_progress)
       }
 
-      // Merge any staged progress from today's daily_challenges row
-      // (staged progress is more recent than the canonical store)
+      // Decompress today's session delta (words answered this session only)
+      // daily_challenges.word_progress starts as {} on a new challenge and only accumulates
+      // words actually answered — so any key here means "touched this session"
       const stagedRaw = todayChallenge?.word_progress || {}
-      if (Object.keys(stagedRaw).length > 0) {
-        const staged = decompressWordStats(stagedRaw)
-        const merged = { ...freshWordStats, ...staged }
-        setWordStats(merged)
-        wordStatsRef.current = merged
-      } else {
-        setWordStats(freshWordStats)
-        wordStatsRef.current = freshWordStats
-      }
+      const stagedDecompressed = Object.keys(stagedRaw).length > 0
+        ? decompressWordStats(stagedRaw)
+        : {}
+
+      // Seed sessionAnsweredRef from existing staged data so resume saves the right delta
+      for (const k of Object.keys(stagedDecompressed)) sessionAnsweredRef.current.add(k)
+
+      // Merge staged into canonical (staged wins — more recent)
+      const mergedStats = { ...freshWordStats, ...stagedDecompressed }
+      setWordStats(mergedStats)
+      wordStatsRef.current = mergedStats
+
+      // Derive dailyCorrect from staged delta: words in today's challenge answered correctly
+      const wordKoreans = todayChallenge?.word_koreans ?? []
+      const derivedDailyCorrect = wordKoreans.filter(k => (stagedDecompressed[k]?.correct || 0) > 0).length
+      setDailyCorrect(derivedDailyCorrect)
 
       if (stats?.grammar_stats) {
         setGrammarStats(stats.grammar_stats)
@@ -298,7 +307,9 @@ export function AppProvider({ children }) {
           const words = todayChallenge.word_koreans.map(k => allWords.find(w => w.korean === k)).filter(Boolean)
           if (words.length > 0) {
             setDailyWords(words)
-            setCurrentIndex(0)
+            // Resume from first word not yet answered correctly (skip already-done words)
+            const startIdx = words.findIndex(w => !(stagedDecompressed[w.korean]?.correct > 0))
+            setCurrentIndex(startIdx >= 0 ? startIdx : 0)
             wordsGeneratedRef.current = true
           } else {
             await generateDailyWords(wordStatsRef.current, userId)
@@ -341,15 +352,22 @@ export function AppProvider({ children }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Save in-progress word stats — to daily_challenges during a normal session,
-  // or directly to user_stats when in endless mode (no staging row exists)
+  // Save in-progress word stats — only the session delta to daily_challenges.
+  // Keeping the delta small means on any device we can derive dailyCorrect and
+  // skip already-completed words without a separate daily_correct counter.
   const flushSessionProgress = async () => {
     const userId = userRef.current?.id
     if (!userId) return
     if (isEndlessModeRef.current) {
       await saveWordProgress(userId, wordStatsRef.current)
     } else {
-      await updateDailyChallengeProgress(userId, wordStatsRef.current)
+      const delta = {}
+      for (const k of sessionAnsweredRef.current) {
+        if (wordStatsRef.current[k]) delta[k] = wordStatsRef.current[k]
+      }
+      if (Object.keys(delta).length > 0) {
+        await updateDailyChallengeProgress(userId, delta)
+      }
     }
   }
 
@@ -379,8 +397,9 @@ export function AppProvider({ children }) {
     }
     setWordStats(prev => ({ ...prev, [word.korean]: newStats }))
     wordStatsRef.current = { ...wordStatsRef.current, [word.korean]: newStats }
+    sessionAnsweredRef.current.add(word.korean) // track for delta saves
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    // Debounced save to daily_challenges staging store (not user_stats directly)
+    // Debounced save — only the delta (words touched this session) to daily_challenges
     saveTimerRef.current = setTimeout(() => {
       flushSessionProgress().catch(() =>
         setError('Failed to save progress. Your streak may not be recorded.')
@@ -401,9 +420,16 @@ export function AppProvider({ children }) {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     const userId = userRef.current?.id
     if (userId) {
-      // Save to both staging (so session can resume today) and canonical (source of truth)
+      // Save delta to staging (so session can resume today with correct progress)
+      // Save full stats to canonical (source of truth for next session)
+      const delta = {}
+      for (const k of sessionAnsweredRef.current) {
+        if (wordStatsRef.current[k]) delta[k] = wordStatsRef.current[k]
+      }
       await Promise.all([
-        updateDailyChallengeProgress(userId, wordStatsRef.current),
+        Object.keys(delta).length > 0
+          ? updateDailyChallengeProgress(userId, delta)
+          : Promise.resolve(),
         saveWordProgress(userId, wordStatsRef.current),
       ])
     }

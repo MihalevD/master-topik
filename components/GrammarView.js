@@ -1,52 +1,39 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { ChevronDown, ChevronRight, Zap, Check, Star } from 'lucide-react'
 
 const MIN_RULE_Q = 3
 const MIN_PERFECT = 2
 
-function RuleCircle({ stat }) {
-  const r = 8
-  const circ = 2 * Math.PI * r
+const GrammarRuleDetail = dynamic(() => import('./GrammarRuleDetail'))
 
-  // Mastered: 2 perfect game sessions → gold star badge
+function RuleStatusBadge({ stat }) {
   if ((stat?.perfectGames || 0) >= MIN_PERFECT) {
     return (
-      <div
-        className="flex-shrink-0 w-5 h-5 rounded-full bg-yellow-500/20 flex items-center justify-center"
-        title={`Mastered! ${stat.perfectGames} perfect games`}
-      >
-        <Star size={11} className="text-yellow-400 fill-yellow-400" />
-      </div>
+      <span className="flex-shrink-0 inline-flex items-center gap-1 text-[11px] bg-yellow-500/15 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full font-semibold">
+        <Star size={9} className="fill-yellow-400" /> Mastered
+      </span>
     )
   }
-
-  // Not enough data yet → empty grey ring
   if (!stat || stat.total < MIN_RULE_Q) {
     return (
-      <svg width="20" height="20" viewBox="0 0 20 20" className="flex-shrink-0" title="Play a quiz to track this rule">
-        <circle cx="10" cy="10" r={r} fill="none" stroke="#374151" strokeWidth="2.5" />
-      </svg>
+      <span className="flex-shrink-0 text-[11px] bg-gray-700/50 text-gray-600 border border-gray-700 px-2 py-0.5 rounded-full">
+        New
+      </span>
     )
   }
-
-  // In progress → partial ring coloured by accuracy
-  const acc = stat.correct / stat.total
-  const dash = circ * acc
-  const color = acc >= 0.8 ? '#4ade80' : acc >= 0.5 ? '#facc15' : '#f87171'
-  const pct = Math.round(acc * 100)
+  const acc = Math.round(stat.correct / stat.total * 100)
+  const cls = acc >= 80
+    ? 'bg-green-500/15 text-green-400 border-green-500/30'
+    : acc >= 50
+    ? 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30'
+    : 'bg-red-500/15 text-red-400 border-red-500/30'
   return (
-    <div className="relative flex-shrink-0" style={{ width: 20, height: 20 }} title={`${pct}% accuracy · ${stat.perfectGames || 0}/2 perfect games`}>
-      <svg width="20" height="20" viewBox="0 0 20 20" style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx="10" cy="10" r={r} fill="none" stroke="#374151" strokeWidth="2.5" />
-        <circle cx="10" cy="10" r={r} fill="none" stroke={color} strokeWidth="2.5"
-          strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" />
-      </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-white font-bold" style={{ fontSize: '5px' }}>
-        {pct}
-      </span>
-    </div>
+    <span className={`flex-shrink-0 text-[11px] border px-2 py-0.5 rounded-full font-semibold ${cls}`}>
+      {acc}%
+    </span>
   )
 }
 
@@ -66,21 +53,33 @@ const colorMap = {
   sky:    { badge: 'bg-sky-500/20 text-sky-300 border-sky-500/30',          dot: 'bg-sky-500',    header: 'text-sky-300'    },
   emerald:{ badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30', dot: 'bg-emerald-500', header: 'text-emerald-300' },
   slate:  { badge: 'bg-slate-500/20 text-slate-300 border-slate-500/30',   dot: 'bg-slate-400',  header: 'text-slate-300'  },
+  lime:   { badge: 'bg-lime-500/20 text-lime-300 border-lime-500/30',       dot: 'bg-lime-500',   header: 'text-lime-300'   },
 }
 
 export default function GrammarView({ grammarData, onBack, onStartGame, ruleStats = {} }) {
   const [openCategories, setOpenCategories] = useState({ 0: true })
-  const [openRules, setOpenRules] = useState({})
   const [selectedRules, setSelectedRules] = useState(() => new Set())
+  const [selectedRule, setSelectedRule] = useState(null) // { rule, si, ri, colorStr, categoryTitle }
 
   const toggleCategory = (i) => setOpenCategories(p => ({ ...p, [i]: !p[i] }))
-  const toggleRule = (key) => setOpenRules(p => ({ ...p, [key]: !p[key] }))
   const toggleRuleSelection = (key) => setSelectedRules(prev => {
     const next = new Set(prev)
     if (next.has(key)) next.delete(key)
     else next.add(key)
     return next
   })
+
+  const toggleAllInCategory = (e, si, rules) => {
+    e.stopPropagation()
+    const keys = rules.map((_, ri) => `${si}-${ri}`)
+    const allSelected = keys.every(k => selectedRules.has(k))
+    setSelectedRules(prev => {
+      const next = new Set(prev)
+      if (allSelected) keys.forEach(k => next.delete(k))
+      else keys.forEach(k => next.add(k))
+      return next
+    })
+  }
 
   const allowedGameCategories = new Set(
     grammarData.flatMap((section, si) =>
@@ -92,6 +91,23 @@ export default function GrammarView({ grammarData, onBack, onStartGame, ruleStat
 
   const canPlay = selectedRules.size > 0
 
+  // ── Rule detail page ────────────────────────────────────────────────────────
+  if (selectedRule) {
+    const key = `${selectedRule.si}-${selectedRule.ri}`
+    return (
+      <GrammarRuleDetail
+        rule={selectedRule.rule}
+        stat={ruleStats[selectedRule.rule.gameCategory]}
+        color={selectedRule.colorStr}
+        categoryTitle={selectedRule.categoryTitle}
+        isSelected={selectedRules.has(key)}
+        onToggleSelect={() => toggleRuleSelection(key)}
+        onBack={() => setSelectedRule(null)}
+      />
+    )
+  }
+
+  // ── Rule list ───────────────────────────────────────────────────────────────
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -104,7 +120,7 @@ export default function GrammarView({ grammarData, onBack, onStartGame, ruleStat
             >
               ← Back
             </button>
-            <p className="text-gray-500 text-sm hidden sm:block">Tick rules to include in the game.</p>
+            <p className="text-gray-500 text-xs">Tick rules to quiz · tap to study</p>
             <button
               onClick={() => canPlay && onStartGame(allowedGameCategories)}
               disabled={!canPlay}
@@ -115,80 +131,91 @@ export default function GrammarView({ grammarData, onBack, onStartGame, ruleStat
               }`}
             >
               <Zap size={14} />
-              Practice Game
+              Practice Quiz
             </button>
           </div>
 
           {grammarData.map((section, si) => {
             const c = colorMap[section.color] || colorMap.blue
             const isOpen = !!openCategories[si]
+
+            // Compute mastery summary for this category
+            const masteredCount = section.rules.filter(r => (ruleStats[r.gameCategory]?.perfectGames || 0) >= MIN_PERFECT).length
+            const practicingCount = section.rules.filter(r => {
+              const s = ruleStats[r.gameCategory]
+              return s && s.total >= MIN_RULE_Q && (s.perfectGames || 0) < MIN_PERFECT
+            }).length
+            const allSelected = section.rules.every((_, ri) => selectedRules.has(`${si}-${ri}`))
+
             return (
               <div key={si} className="bg-gray-800/80 rounded-2xl border border-gray-700/50 overflow-hidden">
                 <button
                   onClick={() => toggleCategory(si)}
                   className="w-full flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-gray-700/30 transition-colors"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${c.dot}`} />
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${c.dot}`} />
                     <span className={`font-bold text-base ${c.header}`}>{section.category}</span>
-                    <span className="text-xs text-gray-600">{section.rules.length} rules</span>
+                    <span className="text-xs text-gray-600 flex-shrink-0">{section.rules.length} rules</span>
+                    {masteredCount > 0 && (
+                      <span className="text-[11px] text-yellow-500 font-medium flex-shrink-0">
+                        · {masteredCount} mastered
+                      </span>
+                    )}
+                    {practicingCount > 0 && masteredCount === 0 && (
+                      <span className="text-[11px] text-gray-500 flex-shrink-0">
+                        · {practicingCount} in progress
+                      </span>
+                    )}
                   </div>
-                  {isOpen ? <ChevronDown size={16} className="text-gray-500" /> : <ChevronRight size={16} className="text-gray-500" />}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {isOpen && (
+                      <button
+                        onClick={(e) => toggleAllInCategory(e, si, section.rules)}
+                        className={`text-[11px] px-2.5 py-1 rounded-lg border transition-colors cursor-pointer ${
+                          allSelected
+                            ? 'bg-purple-600/20 text-purple-300 border-purple-500/40'
+                            : 'bg-gray-700/50 text-gray-400 border-gray-600/50 hover:border-purple-500/40 hover:text-purple-300'
+                        }`}
+                      >
+                        {allSelected ? 'Deselect All' : 'Select All'}
+                      </button>
+                    )}
+                    {isOpen ? <ChevronDown size={16} className="text-gray-500" /> : <ChevronRight size={16} className="text-gray-500" />}
+                  </div>
                 </button>
 
                 {isOpen && (
                   <div className="border-t border-gray-700/50 divide-y divide-gray-700/40">
                     {section.rules.map((rule, ri) => {
                       const key = `${si}-${ri}`
-                      const ruleOpen = !!openRules[key]
                       const isSelected = selectedRules.has(key)
                       return (
-                        <div key={ri}>
-                          <div
-                            onClick={() => toggleRule(key)}
-                            className="flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-gray-700/20 transition-colors"
+                        <div
+                          key={ri}
+                          onClick={() => setSelectedRule({ rule, si, ri, colorStr: section.color, categoryTitle: section.category })}
+                          className="flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-gray-700/20 transition-colors"
+                        >
+                          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium flex-shrink-0 ${c.badge}`}>
+                            {ri + 1}
+                          </span>
+                          <span className="text-white text-sm font-semibold flex-1 min-w-0 truncate">{rule.title}</span>
+
+                          <RuleStatusBadge stat={ruleStats[rule.gameCategory]} />
+
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleRuleSelection(key) }}
+                            className="flex-shrink-0 cursor-pointer"
+                            title={isSelected ? 'Remove from quiz' : 'Add to quiz'}
                           >
-                            <span className={`text-xs px-2 py-0.5 rounded-full border font-medium flex-shrink-0 ${c.badge}`}>
-                              {ri + 1}
-                            </span>
-                            <span className="text-white text-sm font-semibold flex-1 min-w-0 truncate">{rule.title}</span>
-
-                            <RuleCircle stat={ruleStats[rule.gameCategory]} />
-
-                            <button
-                              onClick={(e) => { e.stopPropagation(); toggleRuleSelection(key) }}
-                              className="flex-shrink-0 cursor-pointer"
-                              title={isSelected ? 'Remove from game' : 'Add to game'}
-                            >
-                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                                isSelected ? 'bg-purple-600 border-purple-600' : 'border-gray-600 bg-transparent'
-                              }`}>
-                                {isSelected && <Check size={10} className="text-white" strokeWidth={3} />}
-                              </div>
-                            </button>
-
-                            {ruleOpen
-                              ? <ChevronDown size={14} className="text-gray-500 flex-shrink-0" />
-                              : <ChevronRight size={14} className="text-gray-500 flex-shrink-0" />}
-                          </div>
-
-                          {ruleOpen && (
-                            <div className="px-5 pb-4 space-y-2.5">
-                              <div className="bg-gray-900/60 rounded-xl px-4 py-2.5 border border-gray-700/50">
-                                <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Pattern</p>
-                                <p className="text-sm text-purple-300 font-mono">{rule.pattern}</p>
-                              </div>
-                              <div className="bg-gray-900/60 rounded-xl px-4 py-2.5 border border-gray-700/50">
-                                <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Example</p>
-                                <p className="text-base font-bold text-white">{rule.example}</p>
-                                <p className="text-sm text-gray-400 italic mt-0.5">{rule.translation}</p>
-                              </div>
-                              <div className="flex gap-2 px-1">
-                                <span className="text-yellow-500 text-sm flex-shrink-0">💡</span>
-                                <p className="text-xs text-gray-400 leading-relaxed">{rule.note}</p>
-                              </div>
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                              isSelected ? 'bg-purple-600 border-purple-600' : 'border-gray-600 bg-transparent'
+                            }`}>
+                              {isSelected && <Check size={10} className="text-white" strokeWidth={3} />}
                             </div>
-                          )}
+                          </button>
+
+                          <ChevronRight size={14} className="text-gray-600 flex-shrink-0" />
                         </div>
                       )
                     })}

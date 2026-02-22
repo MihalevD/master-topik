@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Library, BookOpen, Lock, ChevronRight, TrendingUp } from 'lucide-react'
+import { Library, BookOpen, Lock, ChevronRight, TrendingUp, Sparkles } from 'lucide-react'
 import { APP_NAME } from '@/lib/constants'
 import { useApp } from '@/app/providers'
 import { getWords } from '@/lib/words'
@@ -12,6 +12,7 @@ export default function HomePage() {
   const router = useRouter()
   const { totalCompleted, totalScore, getDueCount, wordStats, grammarStats } = useApp()
   const grammarLocked = totalScore <= 0
+  const isNewUser = totalScore === 0 && totalCompleted === 0
   const dueCount = getDueCount()
 
   const [readiness, setReadiness] = useState(null)
@@ -33,10 +34,51 @@ export default function HomePage() {
         <h1 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400 mb-1.5">
           {APP_NAME}
         </h1>
-        <p className="text-gray-400 text-sm">What do you want to practice today?</p>
+        <p className="text-gray-400 text-sm">
+          {isNewUser ? 'Welcome! Follow the steps below to get started.' : 'What do you want to practice today?'}
+        </p>
       </div>
 
       <div className="w-full max-w-2xl space-y-3 sm:space-y-4">
+
+        {/* ── New user: learning path ── */}
+        {isNewUser && (
+          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/25">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles size={15} className="text-purple-400" />
+              <p className="text-purple-300 font-bold text-sm">Your learning path</p>
+            </div>
+            <div className="space-y-2.5">
+              {[
+                { step: 1, label: 'Learn the Korean alphabet', sub: 'Hangul takes ~30 min — do this first', action: () => router.push('/alphabet'), accent: 'purple' },
+                { step: 2, label: 'Practice your first words', sub: 'Answer 1 word correctly to unlock grammar', action: () => router.push('/words'), accent: 'blue' },
+                { step: 3, label: 'Study grammar rules', sub: 'Patterns, examples & common mistakes', action: null, accent: 'gray' },
+              ].map(({ step, label, sub, action, accent }) => (
+                <button
+                  key={step}
+                  onClick={action ?? undefined}
+                  disabled={!action}
+                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left transition-all ${
+                    action
+                      ? 'bg-white/[0.05] hover:bg-white/[0.09] cursor-pointer'
+                      : 'bg-white/[0.02] cursor-default opacity-50'
+                  }`}
+                >
+                  <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                    accent === 'purple' ? 'bg-purple-600/40 text-purple-300' :
+                    accent === 'blue'   ? 'bg-blue-600/40 text-blue-300' :
+                                          'bg-gray-700/60 text-gray-400'
+                  }`}>{step}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-sm font-semibold leading-tight ${action ? 'text-white' : 'text-gray-500'}`}>{label}</p>
+                    <p className="text-gray-500 text-xs mt-0.5">{sub}</p>
+                  </div>
+                  {action && <ChevronRight size={14} className="text-gray-600 flex-shrink-0" />}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Row 1: Words + Grammar — stack on mobile, side-by-side on sm+ ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -71,8 +113,8 @@ export default function HomePage() {
             onClick={() => !grammarLocked && router.push('/grammar')}
           >
             {grammarLocked && (
-              <div className="absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap bg-gray-900 border border-gray-700 text-gray-300 text-xs px-3 py-1.5 rounded-lg shadow-lg opacity-0 group-hover/g:opacity-100 transition-opacity pointer-events-none z-10">
-                Complete a daily challenge to unlock
+              <div className="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap bg-gray-900 border border-gray-700 text-gray-300 text-xs px-3 py-1.5 rounded-lg shadow-lg opacity-0 group-hover/g:opacity-100 transition-opacity pointer-events-none z-10">
+                Answer 1 word correctly in Words to unlock
                 <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-700" />
               </div>
             )}
@@ -91,7 +133,7 @@ export default function HomePage() {
               <p className="text-gray-500 text-xs leading-relaxed">Patterns, rules & sentence structure</p>
               {grammarLocked && (
                 <span className="inline-block mt-1.5 text-[11px] font-semibold text-gray-500 bg-gray-700/40 border border-gray-700/40 px-2 py-0.5 rounded-full">
-                  Complete a challenge first
+                  Answer 1 word in Words to unlock
                 </span>
               )}
             </div>

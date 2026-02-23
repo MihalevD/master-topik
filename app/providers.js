@@ -6,6 +6,11 @@ import { getWords } from '@/lib/words'
 import { ranks } from '@/lib/ranks'
 import { TOPIKII_UNLOCK_THRESHOLD, DEFAULT_DAILY_CHALLENGE, REVIEW_DIFFICULT_COUNT } from '@/lib/constants'
 
+function localToday() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
 // ── Type-balanced daily word picker ──────────────────────────────────────────
 // Ratios reflect actual dataset distribution (noun 71%, verb 18%, adj 6%, adv 4%, expr 1%)
 // while keeping non-noun types slightly over-represented for variety.
@@ -141,7 +146,7 @@ export function AppProvider({ children }) {
       setSavedChallenge(null)
       wordsGeneratedRef.current = false
       generateDailyWords(wordStatsRef.current, userId)
-      const today = new Date().toISOString().split('T')[0]
+      const today = localToday()
       if (userId) saveUserStats(userId, totalCompletedRef.current, streak, today)
       return
     }
@@ -230,7 +235,7 @@ export function AppProvider({ children }) {
         getDailyChallenge(userId),
       ])
       if (statsError) throw statsError
-      const today = new Date().toISOString().split('T')[0]
+      const today = localToday()
       let effectiveDailyCompleted = stats?.daily_completed === true
       if (stats) {
         setTotalCompleted(stats.total_completed || 0)
@@ -476,7 +481,7 @@ export function AppProvider({ children }) {
     wordsGeneratedRef.current = false
     generateDailyWords() // async fire-and-forget — state updates when words resolve
     setDailyCorrect(0)
-    const today = new Date().toISOString().split('T')[0]
+    const today = localToday()
     saveUserStats(userRef.current?.id, totalCompleted, streak, today)
   }
 

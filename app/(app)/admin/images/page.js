@@ -1,18 +1,23 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
-import { ImageOff, Search, CheckCircle2, Trash2, RefreshCw } from 'lucide-react'
+import { ImageOff, Search, CheckCircle2, Trash2, RefreshCw, Download, Loader2, X } from 'lucide-react'
 
 export default function AdminImagesPage() {
-  const [words, setWords]       = useState([])
-  const [loading, setLoading]   = useState(true)
-  const [filter, setFilter]     = useState('all')
-  const [search, setSearch]     = useState('')
-  const [selected, setSelected] = useState(new Set())   // Set of korean strings
-  const [removed, setRemoved]   = useState(new Set())   // removed this session
+  const [words, setWords]           = useState([])
+  const [loading, setLoading]       = useState(true)
+  const [filter, setFilter]         = useState('all')
+  const [search, setSearch]         = useState('')
+  const [selected, setSelected]     = useState(new Set())   // korean strings selected for removal
+  const [removed, setRemoved]       = useState(new Set())   // removed this session
+  const [added, setAdded]           = useState(new Map())   // korean → url (fetched this session)
+  const [fetching, setFetching]     = useState(new Set())   // currently fetching
+  const [bulkFetching, setBulkFetching] = useState(false)
+  const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0, found: 0 })
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError]       = useState(null)
+  const [error, setError]           = useState(null)
+  const abortRef = useRef(false)
 
   useEffect(() => {
     supabase
@@ -26,16 +31,23 @@ export default function AdminImagesPage() {
       })
   }, [])
 
+  // Effective image for a word: session-fetched > db value (unless removed)
+  function effectiveImage(word) {
+    if (removed.has(word.korean)) return null
+    return added.get(word.korean) ?? word.image ?? null
+  }
+
   const filtered = useMemo(() => {
     let list = words
-    if (filter === 'with')    list = list.filter(w => w.image && !removed.has(w.korean))
-    if (filter === 'without') list = list.filter(w => !w.image || removed.has(w.korean))
+    if (filter === 'with')    list = list.filter(w => effectiveImage(w))
+    if (filter === 'without') list = list.filter(w => !effectiveImage(w))
     if (search) {
       const q = search.toLowerCase()
       list = list.filter(w => w.korean.includes(q) || w.english.toLowerCase().includes(q))
     }
     return list
-  }, [words, filter, search, removed])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [words, filter, search, removed, added])
 
   function toggleSelect(korean) {
     setSelected(prev => {
@@ -46,15 +58,13 @@ export default function AdminImagesPage() {
   }
 
   function selectAll() {
-    // Select all visible words that have images and haven't been removed
-    const selectable = filtered.filter(w => w.image && !removed.has(w.korean)).map(w => w.korean)
+    const selectable = filtered.filter(w => effectiveImage(w)).map(w => w.korean)
     setSelected(new Set(selectable))
   }
 
-  function clearSelection() {
-    setSelected(new Set())
-  }
+  function clearSelection() { setSelected(new Set()) }
 
+  // ── Remove selected images ──────────────────────────────────────────────────
   async function submitRemove() {
     if (selected.size === 0) return
     setSubmitting(true)
@@ -68,6 +78,8 @@ export default function AdminImagesPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Unknown error')
       setRemoved(prev => new Set([...prev, ...koreans]))
+      // Also remove from added cache if it was fetched this session
+      setAdded(prev => { const m = new Map(prev); koreans.forEach(k => m.delete(k)); return m })
       setSelected(new Set())
     } catch (err) {
       alert(`Failed to remove images: ${err.message}`)
@@ -75,12 +87,66 @@ export default function AdminImagesPage() {
     setSubmitting(false)
   }
 
-  const withCount    = words.filter(w => w.image && !removed.has(w.korean)).length
-  const withoutCount = words.filter(w => !w.image || removed.has(w.korean)).length
+  // ── Fetch single image ──────────────────────────────────────────────────────
+  async function fetchOne(word) {
+    setFetching(prev => new Set([...prev, word.korean]))
+    try {
+      const res = await fetch(`/api/admin/fetch-image?english=${encodeURIComponent(word.english)}`)
+      const { url } = await res.json()
+      if (url) {
+        // Save to DB
+        await fetch('/api/admin/set-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ korean: word.korean, url }),
+        })
+        setAdded(prev => new Map([...prev, [word.korean, url]]))
+        setRemoved(prev => { const s = new Set(prev); s.delete(word.korean); return s })
+      }
+    } catch {}
+    setFetching(prev => { const s = new Set(prev); s.delete(word.korean); return s })
+  }
+
+  // ── Bulk fetch all words without images ─────────────────────────────────────
+  async function bulkFetchMissing() {
+    const missing = words.filter(w => !effectiveImage(w))
+    if (missing.length === 0) return
+    setBulkFetching(true)
+    abortRef.current = false
+    setBulkProgress({ done: 0, total: missing.length, found: 0 })
+    let found = 0
+    for (let i = 0; i < missing.length; i++) {
+      if (abortRef.current) break
+      const word = missing[i]
+      try {
+        const res = await fetch(`/api/admin/fetch-image?english=${encodeURIComponent(word.english)}`)
+        const { url } = await res.json()
+        if (url) {
+          await fetch('/api/admin/set-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ korean: word.korean, url }),
+          })
+          setAdded(prev => new Map([...prev, [word.korean, url]]))
+          found++
+        }
+      } catch {}
+      setBulkProgress({ done: i + 1, total: missing.length, found })
+      // Small delay to avoid hammering Wikipedia
+      await new Promise(r => setTimeout(r, 120))
+    }
+    setBulkFetching(false)
+  }
+
+  function stopBulk() { abortRef.current = true }
+
+  const withCount    = words.filter(w => effectiveImage(w)).length
+  const withoutCount = words.length - withCount
+  const missingCount = words.filter(w => !effectiveImage(w)).length
 
   if (loading) return (
     <div className="flex-1 flex items-center justify-center">
-      <div className="text-gray-400 text-sm animate-pulse">Loading words from Supabase…</div>
+      <div className="text-gray-400 text-sm animate-pulse">Loading words…</div>
     </div>
   )
 
@@ -93,17 +159,21 @@ export default function AdminImagesPage() {
     </div>
   )
 
-  const selectableInView = filtered.filter(w => w.image && !removed.has(w.korean))
+  const selectableInView = filtered.filter(w => effectiveImage(w))
   const allVisibleSelected = selectableInView.length > 0 && selectableInView.every(w => selected.has(w.korean))
 
   return (
     <div className="flex-1 flex flex-col min-h-0 p-4 md:p-6">
+
       {/* Header */}
       <div className="mb-4 flex-shrink-0">
-        <h1 className="text-2xl font-bold text-white mb-1">Image Review</h1>
+        <h1 className="text-2xl font-bold text-white mb-1">Image Manager</h1>
         <p className="text-gray-400 text-sm">
-          {words.length} total · <span className="text-green-400">{withCount} with images</span> · <span className="text-gray-500">{withoutCount} without</span>
-          {removed.size > 0 && <span className="text-orange-400 ml-2">· {removed.size} removed this session</span>}
+          {words.length} total ·{' '}
+          <span className="text-green-400">{withCount} with images</span> ·{' '}
+          <span className="text-gray-500">{withoutCount} without</span>
+          {removed.size > 0 && <span className="text-orange-400 ml-2">· {removed.size} removed</span>}
+          {added.size > 0  && <span className="text-blue-400 ml-2">· {added.size} fetched</span>}
         </p>
       </div>
 
@@ -149,6 +219,26 @@ export default function AdminImagesPage() {
             {allVisibleSelected ? 'Deselect all' : `Select all (${selectableInView.length})`}
           </button>
         )}
+
+        {/* Bulk fetch */}
+        {!bulkFetching ? (
+          <button
+            onClick={bulkFetchMissing}
+            disabled={missingCount === 0}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-700 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap"
+          >
+            <Download size={14} />
+            Fetch {missingCount} missing
+          </button>
+        ) : (
+          <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-blue-900/40 border border-blue-500/30 text-sm text-blue-300 whitespace-nowrap">
+            <Loader2 size={14} className="animate-spin flex-shrink-0" />
+            <span>{bulkProgress.done}/{bulkProgress.total} · {bulkProgress.found} found</span>
+            <button onClick={stopBulk} className="text-gray-500 hover:text-white transition-colors cursor-pointer">
+              <X size={14} />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Grid */}
@@ -160,39 +250,41 @@ export default function AdminImagesPage() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 pb-24">
             {filtered.map(word => {
-              const hasImage   = word.image && !removed.has(word.korean)
+              const imgUrl     = effectiveImage(word)
               const isSelected = selected.has(word.korean)
               const wasRemoved = removed.has(word.korean)
+              const isFetching = fetching.has(word.korean)
               return (
                 <div
                   key={word.korean}
-                  onClick={() => hasImage && toggleSelect(word.korean)}
                   className={`flex flex-col rounded-xl border overflow-hidden transition-all select-none ${
                     wasRemoved
                       ? 'border-orange-500/30 bg-orange-900/10 opacity-40'
                       : isSelected
-                        ? 'border-red-500 bg-red-900/20 ring-2 ring-red-500/50 cursor-pointer'
-                        : hasImage
-                          ? 'border-gray-700/60 bg-gray-800/60 hover:border-gray-500 cursor-pointer'
-                          : 'border-gray-800/40 bg-gray-800/30 opacity-40'
+                        ? 'border-red-500 bg-red-900/20 ring-2 ring-red-500/50'
+                        : imgUrl
+                          ? 'border-gray-700/60 bg-gray-800/60 hover:border-gray-500'
+                          : 'border-gray-800/40 bg-gray-800/30'
                   }`}
                 >
-                  {/* Image */}
-                  <div className="relative aspect-square bg-gray-900/60 flex items-center justify-center overflow-hidden">
-                    {hasImage ? (
-                      <img src={word.image} alt={word.english} className="w-full h-full object-cover" loading="lazy" />
+                  {/* Image area */}
+                  <div
+                    className="relative aspect-square bg-gray-900/60 flex items-center justify-center overflow-hidden cursor-pointer"
+                    onClick={() => imgUrl && toggleSelect(word.korean)}
+                  >
+                    {isFetching ? (
+                      <Loader2 size={24} className="text-blue-400 animate-spin" />
+                    ) : imgUrl ? (
+                      <img src={imgUrl} alt={word.english} className="w-full h-full object-cover" loading="lazy" />
                     ) : (
                       <ImageOff size={24} className="text-gray-700" />
                     )}
 
-                    {/* Selected checkmark */}
                     {isSelected && (
                       <div className="absolute inset-0 bg-red-900/40 flex items-center justify-center">
                         <CheckCircle2 size={32} className="text-red-300" />
                       </div>
                     )}
-
-                    {/* Removed badge */}
                     {wasRemoved && (
                       <div className="absolute inset-0 flex items-center justify-center bg-black/60">
                         <span className="text-orange-300 text-xs font-bold">REMOVED</span>
@@ -200,10 +292,22 @@ export default function AdminImagesPage() {
                     )}
                   </div>
 
-                  {/* Info */}
+                  {/* Info + fetch button */}
                   <div className="p-2">
                     <p className="text-white font-bold text-sm truncate">{word.korean}</p>
-                    <p className="text-gray-400 text-xs truncate">{word.english}</p>
+                    <p className="text-gray-400 text-xs truncate mb-1.5">{word.english}</p>
+                    {!wasRemoved && (
+                      <button
+                        onClick={() => fetchOne(word)}
+                        disabled={isFetching || bulkFetching}
+                        className="w-full flex items-center justify-center gap-1 py-1 rounded-lg bg-blue-700/30 hover:bg-blue-600/50 disabled:opacity-40 disabled:cursor-not-allowed text-blue-300 text-[10px] font-semibold transition-colors cursor-pointer"
+                      >
+                        {isFetching
+                          ? <><Loader2 size={9} className="animate-spin" /> Fetching…</>
+                          : <><RefreshCw size={9} /> {imgUrl ? 'Re-fetch' : 'Fetch image'}</>
+                        }
+                      </button>
+                    )}
                   </div>
                 </div>
               )
@@ -212,18 +316,13 @@ export default function AdminImagesPage() {
         )}
       </div>
 
-      {/* Sticky bottom bar — shown when something is selected */}
+      {/* Sticky bottom bar — remove selected */}
       {selected.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 px-6 py-4 bg-gray-900/95 backdrop-blur-md border border-red-500/40 rounded-2xl shadow-2xl shadow-red-900/30 whitespace-nowrap">
           <p className="text-white font-semibold flex-1 md:flex-none">
             <span className="text-red-400 font-bold">{selected.size}</span> image{selected.size !== 1 ? 's' : ''} selected
           </p>
-          <button
-            onClick={clearSelection}
-            className="text-gray-400 hover:text-white text-sm cursor-pointer transition-colors"
-          >
-            Cancel
-          </button>
+          <button onClick={clearSelection} className="text-gray-400 hover:text-white text-sm cursor-pointer transition-colors">Cancel</button>
           <button
             onClick={submitRemove}
             disabled={submitting}

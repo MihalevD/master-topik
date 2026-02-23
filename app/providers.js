@@ -7,16 +7,15 @@ import { ranks } from '@/lib/ranks'
 import { TOPIKII_UNLOCK_THRESHOLD, DEFAULT_DAILY_CHALLENGE, REVIEW_DIFFICULT_COUNT } from '@/lib/constants'
 
 // ── Type-balanced daily word picker ──────────────────────────────────────────
-// Proportional targets per word type so every day has a healthy mix.
-// Ratios must roughly sum to 1. If a type has fewer words than its target,
-// the slack is filled by higher-priority words of any remaining type.
+// Ratios reflect actual dataset distribution (noun 71%, verb 18%, adj 6%, adv 4%, expr 1%)
+// while keeping non-noun types slightly over-represented for variety.
+// Ratios sum to 1. Slack from under-stocked types is filled by next-best SRS words.
 const TYPE_SLOTS = [
-  ['noun',       0.38],
-  ['verb',       0.27],
-  ['adjective',  0.17],
-  ['adverb',     0.09],
-  ['expression', 0.05],
-  ['other',      0.04],
+  ['noun',       0.52],
+  ['verb',       0.23],
+  ['adjective',  0.13],
+  ['adverb',     0.08],
+  ['expression', 0.04],
 ]
 
 function pickBalanced(priorityList, count) {

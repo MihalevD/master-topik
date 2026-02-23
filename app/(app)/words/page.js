@@ -148,6 +148,7 @@ export default function PracticePage() {
                     <Sidebar
                       dailyCorrect={dailyCorrect} dailyChallenge={dailyChallenge}
                       progress={progress} totalCompleted={totalCompleted}
+                      wordProgressCount={Object.keys(wordStats).length}
                       topikIIUnlocked={topikIIUnlocked}
                       streak={streak} currentWord={currentWord}
                       onReviewDifficult={() => handleReviewDifficult(dailyWords, currentIndex, dailyCorrect)} isReviewing={isReviewing}

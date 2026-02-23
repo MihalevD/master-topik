@@ -6,7 +6,7 @@ import { TOPIKII_UNLOCK_THRESHOLD, REVIEW_DIFFICULT_COUNT } from '@/lib/constant
 
 export default function Sidebar({
   dailyCorrect, dailyChallenge, progress,
-  totalCompleted, topikIIUnlocked, streak,
+  totalCompleted, wordProgressCount, topikIIUnlocked, streak,
   currentWord, onReviewDifficult, isReviewing
 }) {
   const [showKoreanExample, setShowKoreanExample] = useState(false)
@@ -96,7 +96,7 @@ export default function Sidebar({
       {/* ── Stats ── */}
       <div className="px-3 md:px-4 py-2 md:py-2.5 flex items-center justify-around">
         <div className="flex items-center gap-1.5">
-          <span className="text-sm font-bold text-purple-400 tabular-nums">{totalCompleted.toLocaleString()}</span>
+          <span className="text-sm font-bold text-purple-400 tabular-nums">{(wordProgressCount ?? totalCompleted).toLocaleString()}</span>
           <span className="text-[10px] text-gray-600">words</span>
         </div>
         <div className="w-px h-4 bg-gray-700/60" />

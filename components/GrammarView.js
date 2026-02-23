@@ -103,12 +103,14 @@ export default function GrammarView({ grammarData, onBack, onStartGame, ruleStat
     })
   }
 
-  const allowedGameCategories = new Set(
-    grammarData.flatMap((section, si) =>
-      section.rules
-        .filter((_, ri) => selectedRules.has(`${si}-${ri}`))
-        .map(rule => rule.gameCategory ?? section.gameCategory)
-    )
+  // Array of {gameCategory, title} for each selected rule — drives precise quiz filtering
+  const selectedRuleObjects = grammarData.flatMap((section, si) =>
+    section.rules
+      .filter((_, ri) => selectedRules.has(`${si}-${ri}`))
+      .map(rule => ({
+        gameCategory: rule.gameCategory ?? section.gameCategory,
+        title: rule.title,
+      }))
   )
 
   const canPlay = selectedRules.size > 0
@@ -149,7 +151,7 @@ export default function GrammarView({ grammarData, onBack, onStartGame, ruleStat
               ← Back
             </button>
             <button
-              onClick={() => canPlay && onStartGame(allowedGameCategories)}
+              onClick={() => canPlay && onStartGame(selectedRuleObjects)}
               disabled={!canPlay}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-opacity flex-shrink-0 shadow-lg ${
                 canPlay

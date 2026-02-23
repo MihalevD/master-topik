@@ -10,10 +10,10 @@ import { computeExamReadiness, READINESS_COLORS } from '@/lib/readiness'
 
 export default function HomePage() {
   const router = useRouter()
-  const { totalCompleted, totalScore, getDueCount, wordStats, grammarStats } = useApp()
+  const { totalCompleted, totalScore, dailyChallenge, dailyCorrect, wordStats, grammarStats } = useApp()
   const grammarLocked = totalScore <= 0
   const isNewUser = totalScore === 0 && totalCompleted === 0
-  const dueCount = getDueCount()
+  const remaining = Math.max(0, dailyChallenge - dailyCorrect)
 
   const [readiness, setReadiness] = useState(null)
 
@@ -94,9 +94,13 @@ export default function HomePage() {
             <div className="min-w-0 flex-1">
               <p className="text-white font-bold text-base mb-0.5">Words</p>
               <p className="text-gray-500 text-xs leading-relaxed">Vocabulary flashcards & spaced repetition</p>
-              {dueCount > 0 ? (
+              {remaining > 0 ? (
                 <span className="inline-block mt-1.5 text-[11px] font-semibold text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-full">
-                  {dueCount} due for review
+                  {remaining} left today
+                </span>
+              ) : dailyCorrect > 0 ? (
+                <span className="inline-block mt-1.5 text-[11px] font-semibold text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full">
+                  Done for today
                 </span>
               ) : null}
             </div>

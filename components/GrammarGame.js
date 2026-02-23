@@ -394,74 +394,115 @@ function makeIrregularQ(word) {
 
 // ── Build question pool ──────────────────────────────────────────────────────
 // pool: 'noun' → particle/copula generators; 'verb' → conjugation generators
+// ruleTitle = exact rule.title string from grammar.js this generator tests.
+// null = generator applies to any rule in that category (e.g. IrregularVerbs spans 5 rules).
 const DYNAMIC_GENERATORS = [
-  { cat: 'SentenceStructure', fn: makeSentenceStructureQ, pool: 'noun' },
-  { cat: 'TopicVsSubject',    fn: makeTopicVsSubjectQ,    pool: 'noun' },
-  { cat: 'TopicMarker',      fn: makeTopicQ,      pool: 'noun' },
-  { cat: 'ObjectMarker',     fn: makeObjectQ,      pool: 'noun' },
-  { cat: 'SubjectMarker',    fn: makeSubjectQ,     pool: 'noun' },
-  { cat: 'Copula',           fn: makeCopulaQ,      pool: 'noun' },
-  { cat: 'ConjParticle',     fn: makeConjQ,        pool: 'noun' },
-  { cat: 'LocationParticle', fn: makeDirQ,         pool: 'noun' },
-  { cat: 'Verb Form',        fn: makeVerbPresentQ, pool: 'verb' },
-  { cat: 'Verb Form',        fn: makeVerbPastQ,    pool: 'verb' },
-  { cat: 'Negation',         fn: makeNegQ,         pool: 'verb'      },
-  { cat: 'Connectives',      fn: makeConnQ,        pool: 'any'       }, // -고 works for all verbs
-  { cat: 'IrregularVerbs',   fn: makeIrregularQ,   pool: 'irregular' }, // ㅂ/ㄷ/르/ㅎ/으 irregulars
+  { cat: 'SentenceStructure', ruleTitle: 'SOV Word Order',                 fn: makeSentenceStructureQ, pool: 'noun' },
+  { cat: 'TopicVsSubject',    ruleTitle: 'Topic vs. Subject',              fn: makeTopicVsSubjectQ,    pool: 'noun' },
+  { cat: 'TopicMarker',       ruleTitle: 'Topic marker 은/는',             fn: makeTopicQ,             pool: 'noun' },
+  { cat: 'ObjectMarker',      ruleTitle: 'Object marker 을/를',            fn: makeObjectQ,            pool: 'noun' },
+  { cat: 'SubjectMarker',     ruleTitle: 'Subject marker 이/가',           fn: makeSubjectQ,           pool: 'noun' },
+  { cat: 'Copula',            ruleTitle: 'To be 이에요/예요',              fn: makeCopulaQ,            pool: 'noun' },
+  { cat: 'ConjParticle',      ruleTitle: 'With/And 와/과, 하고',           fn: makeConjQ,              pool: 'noun' },
+  { cat: 'LocationParticle',  ruleTitle: 'Direction/Means/Role 으로/로',   fn: makeDirQ,               pool: 'noun' },
+  { cat: 'Verb Form',         ruleTitle: 'Present tense -아요/어요',       fn: makeVerbPresentQ,       pool: 'verb' },
+  { cat: 'Verb Form',         ruleTitle: 'Past tense -았어요/었어요',      fn: makeVerbPastQ,          pool: 'verb' },
+  { cat: 'Negation',          ruleTitle: 'Short negation 안',              fn: makeNegQ,               pool: 'verb' },
+  { cat: 'Connectives',       ruleTitle: 'And (actions) -고',              fn: makeConnQ,              pool: 'any'  },
+  { cat: 'IrregularVerbs',    ruleTitle: null,                             fn: makeIrregularQ,         pool: 'irregular' },
 ]
 
-function buildQuestions(practicedWords, allWords, selectedCategories, staticQuestions) {
-  const hasFilter = selectedCategories instanceof Set && selectedCategories.size > 0
+function buildQuestions(practicedWords, allWords, selectedRules, staticQuestions) {
+  // selectedRules: array of {gameCategory, title} OR legacy Set<gameCategory>
+  let selectedCats, selectedTitles
+  if (Array.isArray(selectedRules) && selectedRules.length > 0) {
+    selectedCats   = new Set(selectedRules.map(r => r.gameCategory))
+    selectedTitles = new Set(selectedRules.map(r => r.title))
+  } else if (selectedRules instanceof Set && selectedRules.size > 0) {
+    selectedCats   = selectedRules
+    selectedTitles = null
+  }
+
+  const hasFilter = !!selectedCats
   const rawPool   = practicedWords.length > 0 ? practicedWords : allWords.slice(0, 30)
 
-  // Noun pool: words usable in particle/copula questions
-  const rawNouns = rawPool.filter(isNoun)
-  const nounPool = rawNouns.length >= 5 ? rawNouns : rawPool.filter(w => !w.korean.trimEnd().endsWith('다'))
-
-  // Verb pool: only conjugation-safe (regular) verbs
+  const rawNouns  = rawPool.filter(isNoun)
+  const nounPool  = rawNouns.length >= 5 ? rawNouns : rawPool.filter(w => !w.korean.trimEnd().endsWith('다'))
   const rawVerbs  = rawPool.filter(isVerb)
   const safeVerbs = rawVerbs.filter(isConjugable)
   const verbPool  = safeVerbs.length >= 3 ? safeVerbs : rawVerbs
-
-  // Irregular pool: words the player has practiced that are in IRREGULAR_MAP
-  // Fall back to ALL known irregular words from allWords if none practiced yet
   const irregularPool = (() => {
     const practiced = rawPool.filter(w => IRREGULAR_MAP[w.korean])
-    if (practiced.length >= 2) return practiced
-    return allWords.filter(w => IRREGULAR_MAP[w.korean])
+    return practiced.length >= 2 ? practiced : allWords.filter(w => IRREGULAR_MAP[w.korean])
   })()
 
   const getPool = (gen) =>
     gen.pool === 'noun'      ? nounPool :
     gen.pool === 'verb'      ? verbPool :
     gen.pool === 'irregular' ? irregularPool :
-    rawPool  // 'any'
+    rawPool
 
   const makeDynamic = (eligible, count) => {
     if (!eligible.length) return []
     const gens = shuffle([...eligible])
     const out  = []
+    // Track used words per generator to avoid duplicate questions
+    const usedPerGen = new Map()
     for (let i = 0; i < count; i++) {
       const gen  = gens[i % gens.length]
       const pool = getPool(gen)
       if (!pool.length) continue
-      const word = shuffle(pool)[0]
-      const q    = gen.fn(word)
-      if (q) out.push(q)
+      const used = usedPerGen.get(gen) || new Set()
+      const available = pool.filter(w => !used.has(w.korean))
+      if (!available.length) continue // all words exhausted for this generator
+      const word = shuffle(available)[0]
+      used.add(word.korean)
+      usedPerGen.set(gen, used)
+      const q = gen.fn(word)
+      if (q) out.push({ ...q, ruleTitle: gen.ruleTitle ?? q.category })
     }
     return out
   }
 
   if (hasFilter) {
-    const filtered = staticQuestions.filter(q => selectedCategories.has(q.category))
-    const eligible = DYNAMIC_GENERATORS.filter(g => selectedCategories.has(g.cat))
-    const dynamic  = makeDynamic(eligible, 15)
-    return shuffle([...filtered, ...dynamic]).slice(0, 15)
+    // Generators that match selected categories, filtered by ruleTitle when available
+    const eligible = DYNAMIC_GENERATORS.filter(g => {
+      if (!selectedCats.has(g.cat)) return false
+      // null ruleTitle = applies to any rule in this category (e.g. IrregularVerbs)
+      if (g.ruleTitle === null) return true
+      // With title filtering: only include generators whose ruleTitle is selected
+      if (selectedTitles) return selectedTitles.has(g.ruleTitle)
+      return true
+    })
+
+    // For static questions: tag with rule title when exactly 1 rule from that category is selected
+    const catCount = {}
+    if (selectedRules.forEach) selectedRules.forEach(r => { catCount[r.gameCategory] = (catCount[r.gameCategory] || 0) + 1 })
+    const catToTitle = {}
+    if (selectedRules.forEach) selectedRules.forEach(r => { if (catCount[r.gameCategory] === 1) catToTitle[r.gameCategory] = r.title })
+
+    const filtered = staticQuestions
+      .filter(q => selectedCats.has(q.category))
+      .map(q => ({ ...q, ruleTitle: catToTitle[q.category] ?? q.category }))
+
+    const cap = 5 + Math.floor(Math.random() * 6) // 5–10
+    const dynamic = makeDynamic(eligible, 15)
+    const result  = shuffle([...filtered, ...dynamic]).slice(0, cap)
+
+    // Fallback: if title-filtering left us with too few questions, relax to category-level
+    if (result.length < 4 && selectedTitles) {
+      const fallbackGen = DYNAMIC_GENERATORS.filter(g => selectedCats.has(g.cat))
+      const fallbackDyn = makeDynamic(fallbackGen, 15)
+      return shuffle([...filtered, ...fallbackDyn]).slice(0, cap)
+    }
+
+    return result
   }
 
-  // Unfiltered: mix dynamic questions (noun + verb) with static questions
+  // Unfiltered
+  const cap = 5 + Math.floor(Math.random() * 6) // 5–10
   const dynamic = makeDynamic(DYNAMIC_GENERATORS, 15)
-  return shuffle([...dynamic, ...shuffle(staticQuestions).slice(0, 12)]).slice(0, 10)
+  return shuffle([...dynamic, ...shuffle(staticQuestions).slice(0, 12)]).slice(0, cap)
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -502,52 +543,67 @@ export default function GrammarGame({ wordStats, allWords, onClose, onComplete, 
     return allWords.filter(w => keys.includes(w.korean))
   }, [wordStats, allWords])
 
-  const [questions, setQuestions] = useState(() => buildQuestions(practicedWords, allWords, selectedCategories, staticQuestions))
-  const [index, setIndex]         = useState(0)
-  const [selected, setSelected]   = useState(null)
-  const [score, setScore]         = useState(0)
-  const [done, setDone]           = useState(false)
-  const scoreRef   = useRef(0)
-  const answersRef = useRef([]) // { category, correct }[]
+  const buildFresh = () => buildQuestions(practicedWords, allWords, selectedCategories, staticQuestions)
 
-  const q = questions[index]
+  // ── Queue-based state ─────────────────────────────────────────────────────
+  // Wrong answers are re-inserted into the queue to be asked again.
+  const [queue, setQueue]               = useState(buildFresh)
+  const [selected, setSelected]         = useState(null)
+  const [totalCorrect, setTotalCorrect] = useState(0)
+  const [totalAnswered, setTotalAnswered] = useState(0)
+  const [streak, setStreak]             = useState(0)
+  const [done, setDone]                 = useState(false)
+  const initialCount = useRef(null)
+  if (initialCount.current === null) initialCount.current = queue.length
+
+  const answersRef   = useRef([])
+  const scrollAreaRef = useRef(null)
+
+  const q        = queue[0]
   const answered = selected !== null
   const isCorrect = selected === q?.answer
-  const scrollAreaRef = useRef(null)
 
   useEffect(() => {
     if (scrollAreaRef.current) scrollAreaRef.current.scrollTop = 0
-  }, [index])
+  }, [queue.length, queue[0]])
 
   function choose(opt) {
     if (answered) return
     const correct = opt === q.answer
-    answersRef.current.push({ category: q.category, correct })
+    answersRef.current.push({ category: q.category, ruleTitle: q.ruleTitle || q.category, correct })
     setSelected(opt)
+    setTotalAnswered(a => a + 1)
     if (correct) {
-      setScore(s => s + 1)
-      scoreRef.current++
+      setTotalCorrect(c => c + 1)
+      setStreak(s => s + 1)
+    } else {
+      setStreak(0)
     }
   }
 
   function next() {
-    if (index + 1 >= questions.length) {
-      onComplete?.(scoreRef.current, questions.length, answersRef.current)
+    const [current, ...newQueue] = queue
+    const wasCorrect = selected === current.answer
+
+    if (newQueue.length === 0) {
+      onComplete?.(totalCorrect, totalAnswered, answersRef.current)
       setDone(true)
     } else {
-      setIndex(i => i + 1)
+      setQueue(newQueue)
       setSelected(null)
     }
   }
 
   function restart() {
+    const fresh = buildFresh()
     answersRef.current = []
-    setQuestions(buildQuestions(practicedWords, allWords, selectedCategories, staticQuestions))
-    setIndex(0)
+    initialCount.current = fresh.length
+    setQueue(fresh)
     setSelected(null)
-    setScore(0)
+    setTotalCorrect(0)
+    setTotalAnswered(0)
+    setStreak(0)
     setDone(false)
-    scoreRef.current = 0
   }
 
   // ── Not enough words screen ──
@@ -607,60 +663,115 @@ export default function GrammarGame({ wordStats, allWords, onClose, onComplete, 
     </div>
   )
 
-  const pct = Math.round((score / questions.length) * 100)
-  const grade = pct >= 90 ? { label: 'Excellent!', color: 'text-green-400' }
-              : pct >= 70 ? { label: 'Good job!',  color: 'text-blue-400'  }
-              : pct >= 50 ? { label: 'Keep going!', color: 'text-yellow-400' }
+  const pct   = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0
+  const grade = pct >= 90 ? { label: 'Excellent!',     color: 'text-green-400'  }
+              : pct >= 70 ? { label: 'Good job!',       color: 'text-blue-400'   }
+              : pct >= 50 ? { label: 'Keep going!',     color: 'text-yellow-400' }
               :              { label: 'Keep studying!', color: 'text-orange-400' }
 
   // ── Done screen ──
-  if (done) return (
-    <div className="flex-1 flex flex-col items-center justify-center p-6">
-      <div className="bg-gray-800/80 rounded-2xl border border-gray-700/50 p-8 max-w-sm w-full text-center shadow-2xl">
-        <Trophy className="mx-auto mb-3 text-yellow-400" size={48} />
-        <p className={`text-3xl font-bold mb-1 ${grade.color}`}>{grade.label}</p>
-        <p className="text-5xl font-bold text-white mt-3">{score}<span className="text-gray-500 text-2xl">/{questions.length}</span></p>
-        <p className="text-gray-400 mt-1">{pct}% correct</p>
-        <div className="w-full bg-gray-700 rounded-full h-2 mt-4 overflow-hidden">
-          <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
-        </div>
-        <div className="flex gap-3 mt-6">
-          <button onClick={restart} className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-xl font-bold hover:opacity-90 transition-opacity cursor-pointer">
-            <RotateCw size={16} /> Play Again
-          </button>
-          <button onClick={onClose} className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-200 py-3 rounded-xl font-bold transition-colors cursor-pointer">
-            Back
-          </button>
+  if (done) {
+    // Per-rule breakdown sorted worst → best
+    const catMap = {}
+    for (const { ruleTitle, correct } of answersRef.current) {
+      const key = ruleTitle
+      if (!catMap[key]) catMap[key] = { correct: 0, total: 0 }
+      catMap[key].total++
+      if (correct) catMap[key].correct++
+    }
+    const cats = Object.entries(catMap).sort(([, a], [, b]) => (a.correct / a.total) - (b.correct / b.total))
+
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6">
+        <div className="bg-gray-800/80 rounded-2xl border border-gray-700/50 p-6 max-w-sm w-full shadow-2xl">
+          <div className="text-center mb-5">
+            <Trophy className="mx-auto mb-3 text-yellow-400" size={40} />
+            <p className={`text-2xl font-bold mb-1 ${grade.color}`}>{grade.label}</p>
+            <p className="text-4xl font-bold text-white mt-2">
+              {totalCorrect}<span className="text-gray-500 text-xl">/{totalAnswered}</span>
+            </p>
+            <p className="text-gray-500 text-sm mt-1">{pct}% first-try accuracy</p>
+            <div className="w-full bg-gray-700 rounded-full h-1.5 mt-3 overflow-hidden">
+              <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+
+          {/* Per-rule breakdown */}
+          {cats.length > 0 && (
+            <div className="border-t border-gray-700/50 pt-4 mb-5">
+              <p className="text-[10px] text-gray-600 uppercase tracking-wider font-semibold mb-3">By rule</p>
+              <div className="space-y-2">
+                {cats.map(([cat, { correct: c, total: t }]) => {
+                  const a = Math.round((c / t) * 100)
+                  const barColor = a >= 80 ? 'bg-green-500' : a >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                  const textColor = a >= 80 ? 'text-green-400' : a >= 50 ? 'text-yellow-400' : 'text-red-400'
+                  return (
+                    <div key={cat}>
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="text-xs text-gray-400 truncate max-w-[65%]">{cat}</span>
+                        <span className={`text-xs font-bold tabular-nums ${textColor}`}>{c}/{t}</span>
+                      </div>
+                      <div className="h-1 bg-gray-700/60 rounded-full overflow-hidden">
+                        <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${a}%` }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <button onClick={restart} className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-xl font-bold hover:opacity-90 transition-opacity cursor-pointer text-sm">
+              <RotateCw size={15} /> Play Again
+            </button>
+            <button onClick={onClose} className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-200 py-3 rounded-xl font-bold transition-colors cursor-pointer text-sm">
+              Back
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   // ── Question screen ──
   const catStyle = categoryColors[q.category] || 'bg-gray-500/20 text-gray-300 border-gray-500/30'
+  const progressPct = initialCount.current > 0
+    ? Math.round((totalCorrect / initialCount.current) * 100)
+    : 0
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800">
-        <div className="flex items-center gap-3">
-          <span className={`text-xs px-2.5 py-1 rounded-full border font-semibold ${catStyle}`}>{q.category}</span>
-          <span className="text-gray-500 text-sm">{index + 1} / {questions.length}</span>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold flex-shrink-0 ${catStyle}`}>{q.category}</span>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-800 border border-pink-500/40">
-            <Zap size={13} className="text-pink-400" />
-            <span className="text-pink-400 font-bold text-sm">{score}</span>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Correct counter */}
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-800 border border-purple-500/30">
+            <span className="text-purple-400 font-bold text-xs">✓ {totalCorrect}</span>
           </div>
+          {/* Streak — shown when > 1 */}
+          {streak > 1 && (
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-orange-500/10 border border-orange-500/30">
+              <span className="text-orange-400 font-bold text-xs">🔥{streak}</span>
+            </div>
+          )}
+          {/* Remaining */}
+          <span className="text-gray-600 text-xs tabular-nums">{queue.length} left</span>
           <button onClick={onClose} className="p-1.5 rounded-lg bg-gray-800 text-gray-400 hover:text-white cursor-pointer">
             <X size={16} />
           </button>
         </div>
       </div>
 
-      {/* Progress bar */}
+      {/* Progress bar — fills as you get correct answers */}
       <div className="h-1 bg-gray-800">
-        <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-full transition-all duration-500" style={{ width: `${((index) / questions.length) * 100}%` }} />
+        <div
+          className="bg-gradient-to-r from-purple-500 to-pink-500 h-full transition-all duration-500"
+          style={{ width: `${progressPct}%` }}
+        />
       </div>
 
       {/* Content */}
@@ -726,8 +837,10 @@ export default function GrammarGame({ wordStats, allWords, onClose, onComplete, 
           {/* Explanation */}
           {answered && (
             <div className={`rounded-xl border p-4 ${isCorrect ? 'bg-green-900/20 border-green-700/40' : 'bg-orange-900/20 border-orange-700/40'}`}>
-              <p className={`text-sm font-bold mb-1 ${isCorrect ? 'text-green-400' : 'text-orange-400'}`}>
-                {isCorrect ? '✓ Correct!' : `✗ The answer is: ${q.answer}`}
+              <p className={`text-sm font-bold mb-1.5 ${isCorrect ? 'text-green-400' : 'text-orange-400'}`}>
+                {isCorrect
+                  ? `✓ Correct!${streak > 2 ? ` 🔥 ${streak} in a row` : ''}`
+                  : `✗ Answer: ${q.answer}`}
               </p>
               <p className="text-gray-300 text-sm leading-relaxed">{q.explanation}</p>
             </div>
@@ -743,7 +856,7 @@ export default function GrammarGame({ wordStats, allWords, onClose, onComplete, 
             onClick={next}
             className="w-full max-w-xl mx-auto flex bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3.5 rounded-xl font-bold text-base hover:opacity-90 transition-opacity cursor-pointer items-center justify-center gap-2"
           >
-            {index + 1 >= questions.length ? 'See Results' : 'Next Question'}
+            {queue.length <= 1 ? 'See Results' : 'Next Question'}
             <ChevronRight size={18} />
           </button>
         </div>

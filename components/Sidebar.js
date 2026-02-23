@@ -1,12 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Lock, Brain, BookOpen, Flame, ChevronRight } from 'lucide-react'
-import { TOPIKII_UNLOCK_THRESHOLD, REVIEW_DIFFICULT_COUNT } from '@/lib/constants'
+import { Brain, BookOpen, Flame, ChevronRight } from 'lucide-react'
+import { REVIEW_DIFFICULT_COUNT } from '@/lib/constants'
+import { READINESS_COLORS } from '@/lib/readiness'
 
 export default function Sidebar({
   dailyCorrect, dailyChallenge, progress,
-  totalCompleted, wordProgressCount, topikIIUnlocked, streak,
+  wordProgressCount, topikProgress, streak,
   currentWord, onReviewDifficult, isReviewing
 }) {
   const [showKoreanExample, setShowKoreanExample] = useState(false)
@@ -50,44 +51,46 @@ export default function Sidebar({
 
       {/* ── TOPIK Progress ── */}
       <div className="p-3 md:p-4">
-        <p className="text-[10px] font-medium text-gray-500 uppercase tracking-[0.12em] mb-2">TOPIK Progress</p>
-        <div className="space-y-2">
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-xs text-blue-400 font-semibold">TOPIK I</span>
-              <span className="text-[10px] text-gray-600 tabular-nums">
-                {Math.min(totalCompleted, TOPIKII_UNLOCK_THRESHOLD)}/{TOPIKII_UNLOCK_THRESHOLD}
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[10px] font-medium text-gray-500 uppercase tracking-[0.12em]">TOPIK Progress</p>
+          {topikProgress?.current?.level > 0 && (() => {
+            const rc = READINESS_COLORS[topikProgress.current.color]
+            return (
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${rc.text} ${rc.bg}`}>
+                {topikProgress.current.short}
               </span>
-            </div>
-            <div className="w-full bg-white/[0.06] rounded-full h-1.5 overflow-hidden">
-              <div
-                className="bg-gradient-to-r from-blue-600 to-cyan-400 h-full rounded-full transition-all duration-500"
-                style={{ width: `${Math.min((totalCompleted / TOPIKII_UNLOCK_THRESHOLD) * 100, 100)}%` }}
-              />
-            </div>
-          </div>
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <span className={`text-xs font-semibold ${topikIIUnlocked ? 'text-purple-400' : 'text-gray-600'}`}>
-                TOPIK II
-              </span>
-              <span className={`text-[10px] tabular-nums ${topikIIUnlocked ? 'text-gray-600' : 'text-gray-700'}`}>
-                {Math.max(0, totalCompleted - TOPIKII_UNLOCK_THRESHOLD)}/{TOPIKII_UNLOCK_THRESHOLD}
-              </span>
-            </div>
-            <div className="w-full bg-white/[0.06] rounded-full h-1.5 overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${topikIIUnlocked ? 'bg-gradient-to-r from-purple-600 to-pink-400' : 'bg-gray-700/40'}`}
-                style={{ width: `${topikIIUnlocked ? Math.min(((totalCompleted - TOPIKII_UNLOCK_THRESHOLD) / TOPIKII_UNLOCK_THRESHOLD) * 100, 100) : 0}%` }}
-              />
-            </div>
-          </div>
+            )
+          })()}
         </div>
-        {!topikIIUnlocked && (
-          <p className="flex items-center gap-1 mt-2 text-gray-600 text-[10px]">
-            <Lock size={10} className="flex-shrink-0" />
-            {TOPIKII_UNLOCK_THRESHOLD - totalCompleted} more words to unlock TOPIK II
-          </p>
+        {topikProgress ? (() => {
+          const rc = READINESS_COLORS[topikProgress.current.color]
+          if (!topikProgress.next) return (
+            <p className="text-[10px] text-yellow-400 font-semibold">🏆 Max level reached!</p>
+          )
+          const targetWords = Math.ceil(topikProgress.next.tI * topikProgress.tI)
+          const prevWords   = Math.ceil(topikProgress.current.tI * topikProgress.tI)
+          const pct = prevWords >= targetWords
+            ? 100
+            : Math.min(((topikProgress.mI - prevWords) / (targetWords - prevWords)) * 100, 100)
+          return (
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-[10px] text-gray-500">Toward {topikProgress.next.short}</span>
+                <span className="text-[10px] text-gray-500 tabular-nums">{topikProgress.mI} / {targetWords}</span>
+              </div>
+              <div className="w-full bg-white/[0.06] rounded-full h-1.5 overflow-hidden">
+                <div
+                  className={`bg-gradient-to-r ${rc.bar} h-full rounded-full transition-all duration-500`}
+                  style={{ width: `${Math.max(pct, 2)}%` }}
+                />
+              </div>
+            </div>
+          )
+        })() : (
+          <div className="space-y-2 animate-pulse">
+            <div className="h-1.5 bg-white/[0.06] rounded-full" />
+            <div className="h-3 bg-white/[0.04] rounded" />
+          </div>
         )}
       </div>
 

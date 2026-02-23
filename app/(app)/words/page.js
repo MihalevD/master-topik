@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useApp } from '@/app/providers'
 import dynamic from 'next/dynamic'
-import { TOPIKII_UNLOCK_THRESHOLD } from '@/lib/constants'
+import { computeExamReadiness } from '@/lib/readiness'
+import { getWords } from '@/lib/words'
 
 const PracticeCard     = dynamic(() => import('@/components/PracticeCard'))
 const Sidebar          = dynamic(() => import('@/components/Sidebar'))
@@ -21,18 +22,26 @@ export default function PracticePage() {
     streak, speakKorean, handleReviewDifficult, handleReturnToChallenge,
     handleContinueEndless, handleReviewLearned,
     savedChallenge, completeChallengeScore,
-    getWordDifficulty,
+    getWordDifficulty, grammarStats,
   } = useApp()
 
   const [input, setInput] = useState('')
   const [feedback, setFeedback] = useState('')
   const [showHint, setShowHint] = useState(false)
   const [showExample, setShowExample] = useState(false)
+  const [topikWordSets, setTopikWordSets] = useState(null)
+
+  useEffect(() => {
+    getWords().then(({ topikIWords, topikIIWords }) => setTopikWordSets({ topikIWords, topikIIWords }))
+  }, [])
+
+  const topikProgress = topikWordSets
+    ? computeExamReadiness(wordStats, topikWordSets.topikIWords, topikWordSets.topikIIWords, grammarStats)
+    : null
 
   const currentWord = dailyWords.length > 0 ? dailyWords[currentIndex] : null
   const progress = (dailyCorrect / dailyChallenge) * 100
   const currentWordDifficulty = currentWord ? getWordDifficulty(currentWord) : 'New'
-  const topikIIUnlocked = totalCompleted >= TOPIKII_UNLOCK_THRESHOLD
   const handleNextWord = () => {
     const looping = isReviewing || reviewMode || isEndlessMode
     if (!looping && dailyCorrect >= dailyChallenge) {
@@ -147,9 +156,9 @@ export default function PracticePage() {
                   <div className="hidden md:block md:overflow-y-auto">
                     <Sidebar
                       dailyCorrect={dailyCorrect} dailyChallenge={dailyChallenge}
-                      progress={progress} totalCompleted={totalCompleted}
+                      progress={progress}
                       wordProgressCount={Object.keys(wordStats).length}
-                      topikIIUnlocked={topikIIUnlocked}
+                      topikProgress={topikProgress}
                       streak={streak} currentWord={currentWord}
                       onReviewDifficult={() => handleReviewDifficult(dailyWords, currentIndex, dailyCorrect)} isReviewing={isReviewing}
                     />
